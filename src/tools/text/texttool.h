@@ -66,6 +66,8 @@ private slots:
     void updateFontWeight(QFont::Weight weight);
     void updateFontItalic(bool italic);
     void updateAlignment(Qt::AlignmentFlag alignment);
+    void updateDropShadow(bool dropShadow);
+    void updateBorder(bool border);
 
 private:
     void closeEditor();
@@ -80,6 +82,8 @@ private:
     QPointer<TextWidget> m_widget;
     QPointer<TextConfig> m_confW;
     QPoint m_currentPos;
+    bool m_hasDropShadow;
+    bool m_hasBorder;
 
     QString m_tempString;
 };

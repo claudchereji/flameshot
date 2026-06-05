@@ -12,6 +12,8 @@
 TextTool::TextTool(QObject* parent)
   : CaptureTool(parent)
   , m_size(1)
+  , m_hasDropShadow(ConfigHandler().textDropShadow())
+  , m_hasBorder(ConfigHandler().textBorder())
 {
     QString fontFamily = ConfigHandler().fontFamily();
     if (!fontFamily.isEmpty()) {
@@ -35,6 +37,8 @@ void TextTool::copyParams(const TextTool* from, TextTool* to)
     to->m_color = from->m_color;
     to->m_textArea = from->m_textArea;
     to->m_currentPos = from->m_currentPos;
+    to->m_hasDropShadow = from->m_hasDropShadow;
+    to->m_hasBorder = from->m_hasBorder;
 }
 
 bool TextTool::isValid() const
@@ -150,12 +154,23 @@ QWidget* TextTool::configurationWidget()
     connect(
       m_confW, &TextConfig::alignmentChanged, this, &TextTool::updateAlignment);
 
+    connect(m_confW,
+            &TextConfig::dropShadowChanged,
+            this,
+            &TextTool::updateDropShadow);
+    connect(m_confW,
+            &TextConfig::borderChanged,
+            this,
+            &TextTool::updateBorder);
+
     m_confW->setFontFamily(m_font.family());
     m_confW->setItalic(m_font.italic());
     m_confW->setUnderline(m_font.underline());
     m_confW->setStrikeOut(m_font.strikeOut());
     m_confW->setWeight(m_font.weight());
     m_confW->setTextAlignment(m_alignment);
+    m_confW->setDropShadow(m_hasDropShadow);
+    m_confW->setBorder(m_hasBorder);
     return m_confW;
 }
 
@@ -188,6 +203,14 @@ CaptureTool* TextTool::copy(QObject* parent)
                 &TextConfig::alignmentChanged,
                 textTool,
                 &TextTool::updateAlignment);
+        connect(m_confW,
+                &TextConfig::dropShadowChanged,
+                textTool,
+                &TextTool::updateDropShadow);
+        connect(m_confW,
+                &TextConfig::borderChanged,
+                textTool,
+                &TextTool::updateBorder);
     }
     copyParams(this, textTool);
     return textTool;
@@ -207,13 +230,37 @@ void TextTool::process(QPainter& painter, const QPixmap& pixmap)
     fontsize.setWidth(fontsize.width() + val * 2);
     fontsize.setHeight(fontsize.height() + val * 2);
     m_textArea.setSize(fontsize);
-    // draw text
+
+    QRect textRect = m_textArea + QMargins(-val, -val, val, val);
+
     painter.setFont(m_font);
-    painter.setPen(m_color);
+
     if (!editMode()) {
-        painter.drawText(
-          m_textArea + QMargins(-val, -val, val, val), m_alignment, m_text);
+        if (m_hasBorder) {
+            QColor borderColor = ColorUtils::colorIsDark(m_color) ? Qt::white
+                                                                : Qt::black;
+            painter.setPen(borderColor);
+            for (int dx = -1; dx <= 1; ++dx) {
+                for (int dy = -1; dy <= 1; ++dy) {
+                    if (dx == 0 && dy == 0) {
+                        continue;
+                    }
+                    painter.drawText(
+                      textRect.translated(dx, dy), m_alignment, m_text);
+                }
+            }
+        }
+
+        if (m_hasDropShadow) {
+            QColor shadowColor = QColor(0, 0, 0, 160);
+            painter.setPen(shadowColor);
+            painter.drawText(textRect.translated(2, 2), m_alignment, m_text);
+        }
+
+        painter.setPen(m_color);
+        painter.drawText(textRect, m_alignment, m_text);
     }
+
     painter.setFont(orig_font);
     painter.setPen(orig_pen);
 
@@ -335,6 +382,18 @@ void TextTool::updateAlignment(Qt::AlignmentFlag alignment)
     if (m_widget != nullptr) {
         m_widget->setAlignment(m_alignment);
     }
+}
+
+void TextTool::updateDropShadow(bool dropShadow)
+{
+    m_hasDropShadow = dropShadow;
+    ConfigHandler().setTextDropShadow(dropShadow);
+}
+
+void TextTool::updateBorder(bool border)
+{
+    m_hasBorder = border;
+    ConfigHandler().setTextBorder(border);
 }
 
 const QPoint* TextTool::pos()

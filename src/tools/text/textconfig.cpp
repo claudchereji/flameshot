@@ -6,6 +6,7 @@
 #include "utils/confighandler.h"
 #include "utils/pathinfo.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QFontDatabase>
 #include <QHBoxLayout>
@@ -22,6 +23,8 @@ TextConfig::TextConfig(QWidget* parent)
   , m_leftAlignButton(nullptr)
   , m_centerAlignButton(nullptr)
   , m_rightAlignButton(nullptr)
+  , m_dropShadowCheck(nullptr)
+  , m_borderCheck(nullptr)
 {
 
     connect(m_fontsCB,
@@ -104,6 +107,16 @@ TextConfig::TextConfig(QWidget* parent)
     alignmentLayout->addWidget(m_centerAlignButton);
     alignmentLayout->addWidget(m_rightAlignButton);
 
+    m_dropShadowCheck = new QCheckBox(tr("Drop shadow"), this);
+    connect(m_dropShadowCheck, &QCheckBox::clicked, this, [this](bool checked) {
+        emit dropShadowChanged(checked);
+    });
+
+    m_borderCheck = new QCheckBox(tr("Border"), this);
+    connect(m_borderCheck, &QCheckBox::clicked, this, [this](bool checked) {
+        emit borderChanged(checked);
+    });
+
     m_layout->addWidget(m_fontsCB);
     modifiersLayout->addWidget(m_strikeOutButton);
     modifiersLayout->addWidget(m_underlineButton);
@@ -111,6 +124,8 @@ TextConfig::TextConfig(QWidget* parent)
     modifiersLayout->addWidget(m_italicButton);
     m_layout->addLayout(modifiersLayout);
     m_layout->addLayout(alignmentLayout);
+    m_layout->addWidget(m_dropShadowCheck);
+    m_layout->addWidget(m_borderCheck);
 }
 
 void TextConfig::setFontFamily(const QString& fontFamily)
@@ -138,6 +153,16 @@ void TextConfig::setWeight(const int weight)
 void TextConfig::setItalic(const bool italic)
 {
     m_italicButton->setChecked(italic);
+}
+
+void TextConfig::setDropShadow(const bool dropShadow)
+{
+    m_dropShadowCheck->setChecked(dropShadow);
+}
+
+void TextConfig::setBorder(const bool border)
+{
+    m_borderCheck->setChecked(border);
 }
 
 void TextConfig::weightButtonPressed(const bool weight)
