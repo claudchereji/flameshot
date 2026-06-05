@@ -182,8 +182,15 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
         } else {
             // Note: Qt::BypassWindowManagerHint is removed to fix x11 gnome
             // crash. It's needed on Cosmic
-            setWindowFlags(Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint |
-                           Qt::Tool);
+            if (selectedScreen == nullptr) {
+                // Multi-monitor: bypass WM to allow spanning all screens
+                setWindowFlags(Qt::BypassWindowManagerHint |
+                               Qt::WindowStaysOnTopHint |
+                               Qt::FramelessWindowHint);
+            } else {
+                setWindowFlags(Qt::WindowStaysOnTopHint |
+                               Qt::FramelessWindowHint | Qt::Tool);
+            }
         }
 #endif
 

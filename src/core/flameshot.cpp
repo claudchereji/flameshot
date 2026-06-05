@@ -172,6 +172,9 @@ CaptureWidget* Flameshot::gui(const CaptureRequest& req)
 #else
         if (ConfigHandler().useX11LegacyScreenshot()) {
             m_captureWindow->show();
+            m_captureWindow->setGeometry(ScreenGrabber().desktopGeometry());
+            m_captureWindow->raise();
+            m_captureWindow->activateWindow();
         } else {
             m_captureWindow->showFullScreen();
         }
