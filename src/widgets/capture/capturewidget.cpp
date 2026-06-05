@@ -187,33 +187,36 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
         }
 #endif
 
-        // Always display on the selected screen (not spanning entire desktop)
+        // When using legacy X11 screenshot the pixmap spans all monitors,
+        // so size the window to the full desktop instead of a single screen.
         if (selectedScreen == nullptr) {
-            selectedScreen = QGuiApplication::primaryScreen();
-        }
-        QRect screenGeom = selectedScreen->geometry();
-        move(screenGeom.topLeft());
-        resize(screenGeom.size());
-
-        if (selectedScreen != nullptr && windowHandle()) {
-            windowHandle()->setScreen(selectedScreen);
+            QRect desktopGeom = ScreenGrabber().desktopGeometry();
+            move(desktopGeom.topLeft());
+            resize(desktopGeom.size());
+        } else {
+            QRect screenGeom = selectedScreen->geometry();
+            move(screenGeom.topLeft());
+            resize(screenGeom.size());
+            if (windowHandle()) {
+                windowHandle()->setScreen(selectedScreen);
+            }
         }
 #endif
     }
 
     QVector<QRect> areas;
     if (m_context.fullscreen) {
-        // Always display on a single screen, normalized to (0, 0)
-        QScreen* screenForAreas = selectedScreen;
-        if (!screenForAreas) {
-            screenForAreas = QGuiAppCurrentScreen().currentScreen();
+        if (selectedScreen == nullptr) {
+            // Legacy X11: span full desktop
+            QRect r = ScreenGrabber().desktopGeometry();
+            r.moveTo(0, 0);
+            areas.append(r);
+        } else {
+            // Single screen, normalized to (0, 0)
+            QRect r = selectedScreen->geometry();
+            r.moveTo(0, 0);
+            areas.append(r);
         }
-        if (!screenForAreas) {
-            screenForAreas = QGuiApplication::primaryScreen();
-        }
-        QRect r = screenForAreas ? screenForAreas->geometry() : QRect();
-        r.moveTo(0, 0);
-        areas.append(r);
     } else {
         areas.append(rect());
     }
