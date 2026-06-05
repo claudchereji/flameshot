@@ -5,6 +5,7 @@
 
 #include <QWidget>
 
+class QCheckBox;
 class QVBoxLayout;
 class QPushButton;
 class QComboBox;
@@ -21,6 +22,8 @@ public:
     void setWeight(int weight);
     void setItalic(bool italic);
     void setTextAlignment(Qt::AlignmentFlag alignment);
+    void setDropShadow(bool dropShadow);
+    void setBorder(bool border);
 
 signals:
     void fontFamilyChanged(const QString& f);
@@ -29,6 +32,8 @@ signals:
     void fontWeightChanged(const QFont::Weight w);
     void fontItalicChanged(const bool italic);
     void alignmentChanged(Qt::AlignmentFlag alignment);
+    void dropShadowChanged(bool dropShadow);
+    void borderChanged(bool border);
 public slots:
 
 private slots:
@@ -45,4 +50,7 @@ private:
     QPushButton* m_leftAlignButton;
     QPushButton* m_centerAlignButton;
     QPushButton* m_rightAlignButton;
+
+    QCheckBox* m_dropShadowCheck;
+    QCheckBox* m_borderCheck;
 };
