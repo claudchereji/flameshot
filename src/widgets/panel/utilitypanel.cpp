@@ -87,10 +87,8 @@ void UtilityPanel::show()
         return;
     }
     setAttribute(Qt::WA_TransparentForMouseEvents, false);
-    m_showAnimation->setStartValue(QRect(-width(), 0, 0, height()));
-    m_showAnimation->setEndValue(QRect(0, 0, width(), height()));
     m_internalPanel->show();
-    m_showAnimation->start();
+    m_internalPanel->setGeometry(0, 0, width(), height());
 #if (defined(Q_OS_WIN) || defined(Q_OS_MACOS))
     move(0, 0);
 #endif
@@ -103,9 +101,6 @@ void UtilityPanel::hide()
         return;
     }
     setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_hideAnimation->setStartValue(QRect(0, 0, width(), height()));
-    m_hideAnimation->setEndValue(QRect(-width(), 0, 0, height()));
-    m_hideAnimation->start();
     m_internalPanel->hide();
     QWidget::hide();
 }
