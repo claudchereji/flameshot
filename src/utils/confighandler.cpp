@@ -151,7 +151,7 @@ static QMap<class QString, QSharedPointer<ValueHandler>>
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
     // Bypass freedesktop portal and use Qt's native X11
     // screenshot method. Intended for WMs without xdg-desktop-portal.
-    OPTION("useX11LegacyScreenshot"      ,Bool               ( false         )),
+    OPTION("useX11LegacyScreenshot"      ,Bool               ( true          )),
 #endif
 };
 

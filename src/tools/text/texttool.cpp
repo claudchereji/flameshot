@@ -237,11 +237,11 @@ void TextTool::process(QPainter& painter, const QPixmap& pixmap)
 
     if (!editMode()) {
         if (m_hasBorder) {
-            QColor borderColor = ColorUtils::colorIsDark(m_color) ? Qt::white
-                                                                : Qt::black;
+            QColor borderColor = (m_color.value() < 128) ? Qt::white
+                                                         : Qt::black;
             painter.setPen(borderColor);
-            for (int dx = -1; dx <= 1; ++dx) {
-                for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -3; dx <= 3; ++dx) {
+                for (int dy = -3; dy <= 3; ++dy) {
                     if (dx == 0 && dy == 0) {
                         continue;
                     }
