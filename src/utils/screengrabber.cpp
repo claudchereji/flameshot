@@ -256,6 +256,8 @@ QPixmap ScreenGrabber::grabEntireDesktop(bool& ok, int preSelectedMonitor)
             AbstractLogger::error() << tr("Unable to capture screen");
             return QPixmap();
         }
+        // Legacy X11 already returns full desktop; skip monitor selection
+        return screenshot;
     } else {
         freeDesktopPortal(ok, screenshot);
         if (!ok) {
