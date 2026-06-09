@@ -16,6 +16,7 @@
 #include "move/movetool.h"
 #include "pencil/penciltool.h"
 #include "pin/pintool.h"
+#include "blur/blurtool.h"
 #include "pixelate/pixelatetool.h"
 #include "rectangle/rectangletool.h"
 #include "redo/redotool.h"
@@ -56,6 +57,7 @@ CaptureTool* ToolFactory::CreateTool(CaptureTool::Type t, QObject* parent)
         if_TYPE_return_TOOL(TYPE_OPEN_APP, AppLauncher);
 #endif
         if_TYPE_return_TOOL(TYPE_PIXELATE, PixelateTool);
+        if_TYPE_return_TOOL(TYPE_BLUR, BlurTool);
         if_TYPE_return_TOOL(TYPE_REDO, RedoTool);
         if_TYPE_return_TOOL(TYPE_PIN, PinTool);
         if_TYPE_return_TOOL(TYPE_TEXT, TextTool);

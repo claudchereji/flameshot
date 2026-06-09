@@ -2,10 +2,6 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "pixelatetool.h"
-#include <QApplication>
-#include <QGraphicsBlurEffect>
-#include <QGraphicsPixmapItem>
-#include <QGraphicsScene>
 #include <QImage>
 #include <QPainter>
 
@@ -53,33 +49,16 @@ void PixelateTool::process(QPainter& painter, const QPixmap& pixmap)
     QRect selectionScaled = QRect(selection.topLeft() * pixelRatio,
                                   selection.bottomRight() * pixelRatio);
 
-    // If thickness is less than 1, use old blur process
-    if (size() <= 1) {
-        auto* blur = new QGraphicsBlurEffect;
-        blur->setBlurRadius(10);
-        auto* item = new QGraphicsPixmapItem(pixmap.copy(selectionScaled));
-        item->setGraphicsEffect(blur);
+    int width =
+      static_cast<int>(selection.width() * (0.5 / qMax(1, size() + 1)));
+    int height =
+      static_cast<int>(selection.height() * (0.5 / qMax(1, size() + 1)));
+    QSize size = QSize(qMax(width, 1), qMax(height, 1));
 
-        QGraphicsScene scene;
-        scene.addItem(item);
-
-        scene.render(&painter, selection, QRectF());
-        blur->setBlurRadius(12);
-        // multiple repeat for make blur effect stronger
-        scene.render(&painter, selection, QRectF());
-
-    } else {
-        int width =
-          static_cast<int>(selection.width() * (0.5 / qMax(1, size() + 1)));
-        int height =
-          static_cast<int>(selection.height() * (0.5 / qMax(1, size() + 1)));
-        QSize size = QSize(qMax(width, 1), qMax(height, 1));
-
-        QPixmap t = pixmap.copy(selectionScaled);
-        t = t.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        t = t.scaled(selection.width(), selection.height());
-        painter.drawImage(selection, t.toImage());
-    }
+    QPixmap t = pixmap.copy(selectionScaled);
+    t = t.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    t = t.scaled(selection.width(), selection.height());
+    painter.drawImage(selection, t.toImage());
 }
 
 void PixelateTool::drawSearchArea(QPainter& painter, const QPixmap& pixmap)
