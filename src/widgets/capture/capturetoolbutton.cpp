@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "capturetoolbutton.h"
-#include "tools/capturetool.h"
-#include "tools/toolfactory.h"
-#include "utils/confighandler.h"
-#include "utils/globalvalues.h"
-
+#include "src/tools/capturetool.h"
+#include "src/tools/toolfactory.h"
+#include "src/utils/colorutils.h"
+#include "src/utils/confighandler.h"
+#include "src/utils/globalvalues.h"
 #include <QApplication>
 #include <QIcon>
 #include <QMouseEvent>
@@ -23,7 +23,12 @@ CaptureToolButton::CaptureToolButton(const CaptureTool::Type t, QWidget* parent)
   , m_emergeAnimation(nullptr)
 {
     initButton();
-    updateIcon();
+    if (t == CaptureTool::TYPE_SELECTIONINDICATOR) {
+        QFont f = this->font();
+        setFont(QFont(f.family(), 7, QFont::Bold));
+    } else {
+        updateIcon();
+    }
 }
 
 CaptureToolButton::~CaptureToolButton()
@@ -57,8 +62,7 @@ void CaptureToolButton::initButton()
     QString tooltip = m_tool->description();
     QString shortcut =
       ConfigHandler().shortcut(QVariant::fromValue(m_buttonType).toString());
-    if (m_buttonType == CaptureTool::TYPE_COPY &&
-        ConfigHandler().copyOnDoubleClick()) {
+    if (m_buttonType == CaptureTool::TYPE_COPY) {
         tooltip += QStringLiteral(" (%1Left Double-Click)")
                      .arg(shortcut.isEmpty() ? QString() : shortcut + " or ");
     } else if (!shortcut.isEmpty()) {
@@ -136,24 +140,24 @@ static std::map<CaptureTool::Type, int> buttonTypeOrder
       { CaptureTool::TYPE_ARROW, 2 }, { CaptureTool::TYPE_SELECTION, 3 },
       { CaptureTool::TYPE_RECTANGLE, 4 }, { CaptureTool::TYPE_CIRCLE, 5 },
       { CaptureTool::TYPE_MARKER, 6 }, { CaptureTool::TYPE_TEXT, 7 },
-      { CaptureTool::TYPE_PIXELATE, 8 }, { CaptureTool::TYPE_INVERT, 9 },
-      { CaptureTool::TYPE_CIRCLECOUNT, 10 },
-      { CaptureTool::TYPE_MOVESELECTION, 12 }, { CaptureTool::TYPE_UNDO, 13 },
-      { CaptureTool::TYPE_REDO, 14 }, { CaptureTool::TYPE_COPY, 15 },
-      { CaptureTool::TYPE_SAVE, 16 },
-#ifdef ENABLE_IMGUR
-      { CaptureTool::TYPE_IMAGEUPLOADER, 17 },
-#endif
-      { CaptureTool::TYPE_ACCEPT, 18 },
+      { CaptureTool::TYPE_BLUR, 8 },
+      { CaptureTool::TYPE_BORDER, 9 },
+      { CaptureTool::TYPE_INVERT, 10 },
+      { CaptureTool::TYPE_CIRCLECOUNT, 11 },
+      { CaptureTool::TYPE_SELECTIONINDICATOR, 12 },
+      { CaptureTool::TYPE_MOVESELECTION, 13 }, { CaptureTool::TYPE_UNDO, 14 },
+      { CaptureTool::TYPE_REDO, 15 }, { CaptureTool::TYPE_COPY, 16 },
+      { CaptureTool::TYPE_SAVE, 17 }, { CaptureTool::TYPE_IMAGEUPLOADER, 18 },
+      { CaptureTool::TYPE_ACCEPT, 19 },
 #if !defined(Q_OS_MACOS)
-      { CaptureTool::TYPE_OPEN_APP, 19 }, { CaptureTool::TYPE_EXIT, 20 },
-      { CaptureTool::TYPE_PIN, 21 },
+      { CaptureTool::TYPE_OPEN_APP, 20 }, { CaptureTool::TYPE_EXIT, 21 },
+      { CaptureTool::TYPE_PIN, 22 },
 #else
-      { CaptureTool::TYPE_EXIT, 19 }, { CaptureTool::TYPE_PIN, 20 },
+      { CaptureTool::TYPE_EXIT, 20 }, { CaptureTool::TYPE_PIN, 21 },
 #endif
 
-      { CaptureTool::TYPE_SIZEINCREASE, 22 },
-      { CaptureTool::TYPE_SIZEDECREASE, 23 },
+      { CaptureTool::TYPE_SIZEINCREASE, 23 },
+      { CaptureTool::TYPE_SIZEDECREASE, 24 },
 };
 
 int CaptureToolButton::getPriorityByButton(CaptureTool::Type b)
@@ -168,14 +172,14 @@ QList<CaptureTool::Type> CaptureToolButton::iterableButtonTypes = {
     CaptureTool::TYPE_ARROW,         CaptureTool::TYPE_SELECTION,
     CaptureTool::TYPE_RECTANGLE,     CaptureTool::TYPE_CIRCLE,
     CaptureTool::TYPE_MARKER,        CaptureTool::TYPE_TEXT,
-    CaptureTool::TYPE_CIRCLECOUNT,   CaptureTool::TYPE_PIXELATE,
-    CaptureTool::TYPE_INVERT,        CaptureTool::TYPE_MOVESELECTION,
-    CaptureTool::TYPE_UNDO,          CaptureTool::TYPE_REDO,
-    CaptureTool::TYPE_COPY,          CaptureTool::TYPE_SAVE,
-    CaptureTool::TYPE_EXIT,
-#ifdef ENABLE_IMGUR
+    CaptureTool::TYPE_CIRCLECOUNT,   CaptureTool::TYPE_BLUR,
+    CaptureTool::TYPE_INVERT,
+    CaptureTool::TYPE_SELECTIONINDICATOR,
+    CaptureTool::TYPE_MOVESELECTION, CaptureTool::TYPE_UNDO,
+    CaptureTool::TYPE_REDO,          CaptureTool::TYPE_BORDER,
+    CaptureTool::TYPE_COPY,
+    CaptureTool::TYPE_SAVE,          CaptureTool::TYPE_EXIT,
     CaptureTool::TYPE_IMAGEUPLOADER,
-#endif
 #if !defined(Q_OS_MACOS)
     CaptureTool::TYPE_OPEN_APP,
 #endif

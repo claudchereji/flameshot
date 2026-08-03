@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "confighandler.h"
-#include "tools/capturetool.h"
-#include "utils/abstractlogger.h"
-#include "utils/valuehandler.h"
-
+#include "abstractlogger.h"
+#include "src/tools/capturetool.h"
+#include "valuehandler.h"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -16,6 +15,7 @@
 #include <QSharedPointer>
 #include <QStandardPaths>
 #include <QVector>
+#include <algorithm>
 #include <stdexcept>
 
 #if defined(Q_OS_MACOS)
@@ -26,7 +26,7 @@
 
 bool verifyLaunchFile()
 {
-#if defined(Q_OS_UNIX)
+#if defined(Q_OS_LINUX) || defined(Q_OS_UNIX)
     QString path = QStandardPaths::locate(QStandardPaths::GenericConfigLocation,
                                           "autostart/",
                                           QStandardPaths::LocateDirectory) +
@@ -77,52 +77,42 @@ static QMap<class QString, QSharedPointer<ValueHandler>>
     OPTION("showHelp"                    ,Bool               ( true          )),
     OPTION("showSidePanelButton"         ,Bool               ( true          )),
     OPTION("showDesktopNotification"     ,Bool               ( true          )),
-    OPTION("showAbortNotification"       ,Bool               ( true          )),
     OPTION("disabledTrayIcon"            ,Bool               ( false         )),
     OPTION("historyConfirmationToDelete" ,Bool               ( true          )),
-#if !defined(DISABLE_UPDATE_CHECKER)
     OPTION("checkForUpdates"             ,Bool               ( true          )),
-#endif
     OPTION("allowMultipleGuiInstances"   ,Bool               ( false         )),
     OPTION("showMagnifier"               ,Bool               ( false         )),
     OPTION("squareMagnifier"             ,Bool               ( false         )),
+#if !defined(Q_OS_WIN)
     OPTION("autoCloseIdleDaemon"         ,Bool               ( false         )),
+#endif
     OPTION("startupLaunch"               ,Bool               ( false         )),
     OPTION("showStartupLaunchMessage"    ,Bool               ( true          )),
-    OPTION("showQuitPrompt"              ,Bool               ( false         )),
-    OPTION("copyURLAfterUpload"          ,Bool               ( true          )),
+    OPTION("copyAndCloseAfterUpload"     ,Bool               ( true          )),
     OPTION("copyPathAfterSave"           ,Bool               ( false         )),
     OPTION("antialiasingPinZoom"         ,Bool               ( true          )),
     OPTION("useJpgForClipboard"          ,Bool               ( false         )),
-#if defined(Q_OS_MACOS)
-    OPTION("useNativeFullscreen"         ,Bool               ( false         )),
-#endif
     OPTION("uploadWithoutConfirmation"   ,Bool               ( false         )),
     OPTION("saveAfterCopy"               ,Bool               ( false         )),
-    OPTION("savePath"                    ,ExistingDir        (               )),
+    OPTION("savePath"                    ,ExistingDir        (                   )),
     OPTION("savePathFixed"               ,Bool               ( false         )),
-    OPTION("saveAsFileExtension"         ,SaveFileExtension  (               )),
-    OPTION("saveLastRegion"              ,Bool               ( false         )),
-    OPTION("uploadHistoryMax"            ,LowerBoundedInt    ( 0, 25         )),
-    OPTION("undoLimit"                   ,BoundedInt         ( 0, 999, 100   )),
-    // Interface tab
-    OPTION("uiLanguage"                  ,String             ( "auto"        )),
-    OPTION("uiColor"                     ,Color              ( {116, 0, 150} )),
-    OPTION("contrastUiColor"             ,Color              ( {39, 0, 50}   )),
-    OPTION("contrastOpacity"             ,BoundedInt         ( 0, 255, 190   )),
+    OPTION("saveAsFileExtension"         ,SaveFileExtension  (                   )),
+    OPTION("saveLastRegion"              ,Bool               (false          )),
+    OPTION("uploadHistoryMax"            ,LowerBoundedInt    (0, 25               )),
+    OPTION("undoLimit"                   ,BoundedInt         (0, 999, 100    )),
+  // Interface tab
+    OPTION("uiColor"                     ,Color              ( {116, 0, 150}   )),
+    OPTION("contrastUiColor"             ,Color              ( {39, 0, 50}     )),
+    OPTION("contrastOpacity"             ,BoundedInt         ( 0, 255, 190    )),
+    OPTION("borderDarkColor"             ,Bool               ( false          )),
     OPTION("buttons"                     ,ButtonList         ( {}            )),
     // Filename Editor tab
     OPTION("filenamePattern"             ,FilenamePattern    ( {}            )),
     // Others
-    // drawThickness shared by Pencil, Line, Arrow, Rectangular Selection, Circle
-    OPTION("drawThickness"               ,LowerBoundedInt    ( 1, 3          )),
-    OPTION("drawFontSize"                ,LowerBoundedInt    ( 1, 8          )),
-    OPTION("drawCircleCounterSize"       ,LowerBoundedInt    ( 1, 1          )),
-    OPTION("drawPixelateSize"            ,LowerBoundedInt    ( 1, 2          )),
-    OPTION("drawRectangleSize"           ,LowerBoundedInt    ( 1, 1          )),
-    OPTION("drawMarkerSize"              ,LowerBoundedInt    ( 1, 5          )),
+    OPTION("drawThickness"               ,LowerBoundedInt    (1  , 3             )),
+    OPTION("drawFontSize"                ,LowerBoundedInt    (1  , 8             )),
     OPTION("drawColor"                   ,Color              ( Qt::red       )),
-    OPTION("userColors"                  ,UserColors         ( 3, 17         )),
+    OPTION("userColors"                  ,UserColors(3,        17            )),
     OPTION("ignoreUpdateToVersion"       ,String             ( ""            )),
     OPTION("keepOpenAppLauncher"         ,Bool               ( false         )),
     OPTION("fontFamily"                  ,String             ( ""            )),
@@ -133,26 +123,7 @@ static QMap<class QString, QSharedPointer<ValueHandler>>
     // NOTE: If another tool size is added besides drawThickness and
     // drawFontSize, remember to update ConfigHandler::toolSize
     OPTION("copyOnDoubleClick"           ,Bool               ( false         )),
-    OPTION("uploadClientSecret"          ,String             ( "313baf0c7b4d3ff" )),
-    OPTION("showSelectionGeometry"       , BoundedInt        ( 0, 5, 4       )),
-    OPTION("showSelectionGeometryHideTime", LowerBoundedInt  ( 0, 3000       )),
-    OPTION("jpegQuality"                 , BoundedInt        ( 0,100,75      )),
-    OPTION("reverseArrow"                ,Bool               ( false         )),
-    OPTION("insecurePixelate"            ,Bool               ( false         )),
-#if defined(Q_OS_WIN)
-    // Not visible on settings dialog
-    OPTION("ignorePrntScrForcesSnipping" ,Bool               ( false         )),
-#endif
-#if !defined(Q_OS_MACOS)
-    // Auto-select the monitor under the cursor instead of showing
-    // the monitor selection UI. Not supported on Wayland.
-    OPTION("captureActiveMonitor"         ,Bool               ( false         )),
-#endif
-#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
-    // Bypass freedesktop portal and use Qt's native X11
-    // screenshot method. Intended for WMs without xdg-desktop-portal.
-    OPTION("useX11LegacyScreenshot"      ,Bool               ( true          )),
-#endif
+    OPTION("uploadClientSecret"          ,String             ( "313baf0c7b4d3ff"            )),
 };
 
 static QMap<QString, QSharedPointer<KeySequence>> recognizedShortcuts = {
@@ -170,36 +141,25 @@ static QMap<QString, QSharedPointer<KeySequence>> recognizedShortcuts = {
     SHORTCUT("TYPE_SAVE"                ,   "Ctrl+S"                ),
     SHORTCUT("TYPE_ACCEPT"              ,   "Return"                ),
     SHORTCUT("TYPE_EXIT"                ,   "Ctrl+Q"                ),
-    SHORTCUT("TYPE_CANCEL"              ,   "Ctrl+Backspace"        ),
-#ifdef ENABLE_IMGUR
     SHORTCUT("TYPE_IMAGEUPLOADER"       ,                           ),
-#endif
 #if !defined(Q_OS_MACOS)
     SHORTCUT("TYPE_OPEN_APP"            ,   "Ctrl+O"                ),
 #endif
-    SHORTCUT("TYPE_PIXELATE"            ,   "B"                     ),
+    SHORTCUT("TYPE_BLUR"                ,   "B"                     ),
     SHORTCUT("TYPE_INVERT"              ,   "I"                     ),
     SHORTCUT("TYPE_REDO"                ,   "Ctrl+Shift+Z"          ),
     SHORTCUT("TYPE_TEXT"                ,   "T"                     ),
     SHORTCUT("TYPE_TOGGLE_PANEL"        ,   "Space"                 ),
-    SHORTCUT("TYPE_GRAB_COLOR"          ,   "G"                     ),
     SHORTCUT("TYPE_RESIZE_LEFT"         ,   "Shift+Left"            ),
     SHORTCUT("TYPE_RESIZE_RIGHT"        ,   "Shift+Right"           ),
     SHORTCUT("TYPE_RESIZE_UP"           ,   "Shift+Up"              ),
     SHORTCUT("TYPE_RESIZE_DOWN"         ,   "Shift+Down"            ),
-    SHORTCUT("TYPE_SYM_RESIZE_LEFT"     ,   "Ctrl+Shift+Left"       ),
-    SHORTCUT("TYPE_SYM_RESIZE_RIGHT"    ,   "Ctrl+Shift+Right"      ),
-    SHORTCUT("TYPE_SYM_RESIZE_UP"       ,   "Ctrl+Shift+Up"         ),
-    SHORTCUT("TYPE_SYM_RESIZE_DOWN"     ,   "Ctrl+Shift+Down"       ),
     SHORTCUT("TYPE_SELECT_ALL"          ,   "Ctrl+A"                ),
     SHORTCUT("TYPE_MOVE_LEFT"           ,   "Left"                  ),
     SHORTCUT("TYPE_MOVE_RIGHT"          ,   "Right"                 ),
     SHORTCUT("TYPE_MOVE_UP"             ,   "Up"                    ),
     SHORTCUT("TYPE_MOVE_DOWN"           ,   "Down"                  ),
     SHORTCUT("TYPE_COMMIT_CURRENT_TOOL" ,   "Ctrl+Return"           ),
-#if defined(Q_OS_WIN)
-    SHORTCUT("TAKE_SCREENSHOT"          ,   "Meta+Shift+x"          ),
-#endif
 #if defined(Q_OS_MACOS)
     SHORTCUT("TYPE_DELETE_CURRENT_TOOL" ,   "Backspace"             ),
     SHORTCUT("TAKE_SCREENSHOT"          ,   "Ctrl+Shift+X"          ),
@@ -208,24 +168,21 @@ static QMap<QString, QSharedPointer<KeySequence>> recognizedShortcuts = {
     SHORTCUT("TYPE_DELETE_CURRENT_TOOL" ,   "Delete"                ),
 #endif
     SHORTCUT("TYPE_PIN"                 ,                           ),
+    SHORTCUT("TYPE_SELECTIONINDICATOR"  ,                           ),
     SHORTCUT("TYPE_SIZEINCREASE"        ,                           ),
     SHORTCUT("TYPE_SIZEDECREASE"        ,                           ),
     SHORTCUT("TYPE_CIRCLECOUNT"         ,                           ),
+    SHORTCUT("TYPE_BORDER"              ,   "O"                     ),
 };
 // clang-format on
 
 // CLASS CONFIGHANDLER
 
 ConfigHandler::ConfigHandler()
-#ifndef USE_PORTABLE_CONFIG
   : m_settings(QSettings::IniFormat,
                QSettings::UserScope,
                qApp->organizationName(),
                qApp->applicationName())
-#else
-  : m_settings(qApp->applicationDirPath() + "/flameshot.ini",
-               QSettings::IniFormat)
-#endif
 {
     static bool firstInitialization = true;
     if (firstInitialization) {
@@ -308,7 +265,7 @@ void ConfigHandler::setStartupLaunch(const bool start)
         qWarning() << "Unable to change login items, error:"
                    << process.readAll();
     }
-#elif defined(Q_OS_UNIX)
+#elif defined(Q_OS_LINUX) || defined(Q_OS_UNIX)
     QString path =
       QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) +
       "/autostart/";
@@ -360,25 +317,16 @@ void ConfigHandler::setStartupLaunch(const bool start)
 
 void ConfigHandler::setAllTheButtons()
 {
-    QList<CaptureTool::Type> buttonlist =
+    QList<CaptureTool::Type> buttons =
       CaptureToolButton::getIterableButtonTypes();
-    setValue(QStringLiteral("buttons"), QVariant::fromValue(buttonlist));
+    setValue(QStringLiteral("buttons"), QVariant::fromValue(buttons));
 }
 
 void ConfigHandler::setToolSize(CaptureTool::Type toolType, int size)
 {
     if (toolType == CaptureTool::TYPE_TEXT) {
         setDrawFontSize(size);
-    } else if (toolType == CaptureTool::TYPE_RECTANGLE) {
-        setDrawRectangleSize(size);
-    } else if (toolType == CaptureTool::TYPE_MARKER) {
-        setDrawMarkerSize(size);
-    } else if (toolType == CaptureTool::TYPE_PIXELATE) {
-        setDrawPixelateSize(size);
-    } else if (toolType == CaptureTool::TYPE_CIRCLECOUNT) {
-        setDrawCircleCounterSize(size);
     } else if (toolType != CaptureTool::NONE) {
-        // All other tools are sharing the same size
         setDrawThickness(size);
     }
 }
@@ -387,16 +335,7 @@ int ConfigHandler::toolSize(CaptureTool::Type toolType)
 {
     if (toolType == CaptureTool::TYPE_TEXT) {
         return drawFontSize();
-    } else if (toolType == CaptureTool::TYPE_RECTANGLE) {
-        return drawRectangleSize();
-    } else if (toolType == CaptureTool::TYPE_MARKER) {
-        return drawMarkerSize();
-    } else if (toolType == CaptureTool::TYPE_PIXELATE) {
-        return drawPixelateSize();
-    } else if (toolType == CaptureTool::TYPE_CIRCLECOUNT) {
-        return drawCircleCounterSize();
     } else {
-        // All other tools are sharing the same size
         return drawThickness();
     }
 }
@@ -410,7 +349,7 @@ QString ConfigHandler::filenamePatternDefault()
 
 void ConfigHandler::setDefaultSettings()
 {
-    for (const auto& key : m_settings.allKeys()) {
+    foreach (const QString& key, m_settings.allKeys()) {
         if (isShortcut(key)) {
             // Do not reset Shortcuts
             continue;
@@ -433,7 +372,7 @@ bool ConfigHandler::setShortcut(const QString& actionName,
     qDebug() << actionName;
     static QVector<QKeySequence> reservedShortcuts = {
 #if defined(Q_OS_MACOS)
-        Qt::CTRL | Qt::Key_Backspace,
+        Qt::CTRL + Qt::Key_Backspace,
         Qt::Key_Escape,
 #else
         Qt::Key_Backspace,
@@ -445,16 +384,16 @@ bool ConfigHandler::setShortcut(const QString& actionName,
         return false;
     }
 
-    bool errorFlag = false;
+    bool error = false;
 
     m_settings.beginGroup(CONFIG_GROUP_SHORTCUTS);
     if (shortcut.isEmpty()) {
         setValue(actionName, "");
     } else if (reservedShortcuts.contains(QKeySequence(shortcut))) {
         // do not allow to set reserved shortcuts
-        errorFlag = true;
+        error = true;
     } else {
-        errorFlag = false;
+        error = false;
         // Make no difference for Return and Enter keys
         QString newShortcut = KeySequence().value(shortcut).toString();
         for (auto& otherAction : m_settings.allKeys()) {
@@ -464,7 +403,7 @@ bool ConfigHandler::setShortcut(const QString& actionName,
             QString existingShortcut =
               KeySequence().value(m_settings.value(otherAction)).toString();
             if (newShortcut == existingShortcut) {
-                errorFlag = true;
+                error = true;
                 goto done;
             }
         }
@@ -472,7 +411,7 @@ bool ConfigHandler::setShortcut(const QString& actionName,
     }
 done:
     m_settings.endGroup();
-    return !errorFlag;
+    return !error;
 }
 
 QString ConfigHandler::shortcut(const QString& actionName)
@@ -537,15 +476,25 @@ void ConfigHandler::resetValue(const QString& key)
 
 QSet<QString>& ConfigHandler::recognizedGeneralOptions()
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     auto keys = ::recognizedGeneralOptions.keys();
     static QSet<QString> options = QSet<QString>(keys.begin(), keys.end());
+#else
+    static QSet<QString> options =
+      QSet<QString>::fromList(::recognizedGeneralOptions.keys());
+#endif
     return options;
 }
 
 QSet<QString>& ConfigHandler::recognizedShortcutNames()
 {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     auto keys = recognizedShortcuts.keys();
     static QSet<QString> names = QSet<QString>(keys.begin(), keys.end());
+#else
+    static QSet<QString> names =
+      QSet<QString>::fromList(recognizedShortcuts.keys());
+#endif
     return names;
 }
 
@@ -653,7 +602,9 @@ bool ConfigHandler::checkShortcutConflicts(AbstractLogger* log) const
                     reportedInLog.append(*key2);
                     *log << tr("Shortcut conflict: '%1' and '%2' "
                                "have the same shortcut: %3\n")
-                              .arg(*key1, *key2, value1);
+                              .arg(*key1)
+                              .arg(*key2)
+                              .arg(value1);
                 }
             }
         }
@@ -690,7 +641,8 @@ bool ConfigHandler::checkSemantics(AbstractLogger* log,
             }
             if (log != nullptr) {
                 *log << tr("Bad value in '%1'. Expected: %2\n")
-                          .arg(key, valueHandler->expected());
+                          .arg(key)
+                          .arg(valueHandler->expected());
             }
             if (offenders != nullptr) {
                 offenders->append(key);
@@ -769,9 +721,8 @@ void ConfigHandler::ensureFileWatched() const
 {
     QFile file(m_settings.fileName());
     if (!file.exists()) {
-        if (file.open(QFileDevice::WriteOnly)) {
-            file.close();
-        }
+        file.open(QFileDevice::WriteOnly);
+        file.close();
     }
     if (m_configWatcher != nullptr && m_configWatcher->files().isEmpty() &&
         qApp != nullptr // ensures that the organization name can be accessed
@@ -832,7 +783,7 @@ bool ConfigHandler::isShortcut(const QString& key) const
            key.startsWith(QStringLiteral(CONFIG_GROUP_SHORTCUTS "/"));
 }
 
-QString ConfigHandler::baseName(const QString& key) const
+QString ConfigHandler::baseName(QString key) const
 {
     return QFileInfo(key).baseName();
 }

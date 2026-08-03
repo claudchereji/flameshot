@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "textconfig.h"
-#include "utils/colorutils.h"
-#include "utils/confighandler.h"
-#include "utils/pathinfo.h"
-
+#include "src/utils/colorutils.h"
+#include "src/utils/confighandler.h"
+#include "src/utils/pathinfo.h"
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFontDatabase>
@@ -27,11 +26,13 @@ TextConfig::TextConfig(QWidget* parent)
   , m_borderCheck(nullptr)
 {
 
+    QFontDatabase fontDB;
+
     connect(m_fontsCB,
             &QComboBox::currentTextChanged,
             this,
             &TextConfig::fontFamilyChanged);
-    m_fontsCB->addItems(QFontDatabase::families());
+    m_fontsCB->addItems(fontDB.families());
     setFontFamily(ConfigHandler().fontFamily());
 
     QString iconPrefix = ColorUtils::colorIsDark(palette().windowText().color())
@@ -80,7 +81,7 @@ TextConfig::TextConfig(QWidget* parent)
     m_leftAlignButton->setCheckable(true);
     m_leftAlignButton->setAutoExclusive(true);
     connect(m_leftAlignButton, &QPushButton::clicked, this, [this] {
-        emit alignmentChanged(Qt::AlignLeft);
+        alignmentChanged(Qt::AlignLeft);
     });
     m_leftAlignButton->setToolTip(tr("Left Align"));
 
@@ -89,7 +90,7 @@ TextConfig::TextConfig(QWidget* parent)
     m_centerAlignButton->setCheckable(true);
     m_centerAlignButton->setAutoExclusive(true);
     connect(m_centerAlignButton, &QPushButton::clicked, this, [this] {
-        emit alignmentChanged(Qt::AlignCenter);
+        alignmentChanged(Qt::AlignCenter);
     });
     m_centerAlignButton->setToolTip(tr("Center Align"));
 
@@ -98,7 +99,7 @@ TextConfig::TextConfig(QWidget* parent)
     m_rightAlignButton->setCheckable(true);
     m_rightAlignButton->setAutoExclusive(true);
     connect(m_rightAlignButton, &QPushButton::clicked, this, [this] {
-        emit alignmentChanged(Qt::AlignRight);
+        alignmentChanged(Qt::AlignRight);
     });
     m_rightAlignButton->setToolTip(tr("Right Align"));
 

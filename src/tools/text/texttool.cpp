@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "texttool.h"
-#include "tools/text/textconfig.h"
-#include "tools/text/textwidget.h"
-#include "utils/confighandler.h"
+#include "src/utils/confighandler.h"
+#include "textconfig.h"
+#include "textwidget.h"
 
 #define BASE_POINT_SIZE 8
 #define MAX_INFO_LENGTH 24
@@ -80,7 +80,7 @@ QString TextTool::name() const
 QString TextTool::info()
 {
     if (m_text.length() > 0) {
-        m_tempString = QString("%1 - %2").arg(name(), m_text.trimmed());
+        m_tempString = QString("%1 - %2").arg(name()).arg(m_text.trimmed());
         m_tempString = m_tempString.split("\n").at(0);
         if (m_tempString.length() > MAX_INFO_LENGTH) {
             m_tempString.truncate(MAX_INFO_LENGTH);
@@ -226,10 +226,10 @@ void TextTool::process(QPainter& painter, const QPixmap& pixmap)
     QFont orig_font = painter.font();
     QPen orig_pen = painter.pen();
     QFontMetrics fm(m_font);
-    QSize fontsize(fm.boundingRect(QRect(), 0, m_text).size());
-    fontsize.setWidth(fontsize.width() + val * 2);
-    fontsize.setHeight(fontsize.height() + val * 2);
-    m_textArea.setSize(fontsize);
+    QSize size(fm.boundingRect(QRect(), 0, m_text).size());
+    size.setWidth(size.width() + val * 2);
+    size.setHeight(size.height() + val * 2);
+    m_textArea.setSize(size);
 
     QRect textRect = m_textArea + QMargins(-val, -val, val, val);
 
@@ -254,7 +254,7 @@ void TextTool::process(QPainter& painter, const QPixmap& pixmap)
         if (m_hasDropShadow) {
             QColor shadowColor = QColor(0, 0, 0, 160);
             painter.setPen(shadowColor);
-            painter.drawText(textRect.translated(2, 2), m_alignment, m_text);
+            painter.drawText(textRect.translated(3, 3), m_alignment, m_text);
         }
 
         painter.setPen(m_color);
