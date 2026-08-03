@@ -80,6 +80,7 @@ private slots:
     void onMoveCaptureToolUp(int captureToolIndex);
     void onMoveCaptureToolDown(int captureToolIndex);
     void selectAll();
+    void toggleBorder();
 
 public:
     void removeToolObject(int index = -1);
@@ -167,6 +168,7 @@ private:
     UpdateNotificationWidget* m_updateNotificationWidget;
     quint64 m_lastMouseWheel;
     QPointer<CaptureToolButton> m_sizeIndButton;
+    QPointer<CaptureToolButton> m_borderButton;
     // Last pressed button
     QPointer<CaptureToolButton> m_activeButton;
     QPointer<CaptureTool> m_activeTool;
@@ -196,6 +198,9 @@ private:
     QUndoStack m_undoStack;
 
     bool m_existingObjectIsChanged;
+    bool m_borderEnabled;
+    bool m_borderDark;
+    QColor m_borderActiveColor;
 
     // For start moving after more than X offset
     QPoint m_startMovePos;

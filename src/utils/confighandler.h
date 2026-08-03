@@ -97,6 +97,7 @@ public:
                          setShowStartupLaunchMessage,
                          bool)
     CONFIG_GETTER_SETTER(contrastOpacity, setContrastOpacity, int)
+    CONFIG_GETTER_SETTER(borderDarkColor, setBorderDarkColor, bool)
     CONFIG_GETTER_SETTER(copyAndCloseAfterUpload,
                          setCopyAndCloseAfterUpload,
                          bool)

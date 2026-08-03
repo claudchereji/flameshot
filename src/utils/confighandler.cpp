@@ -104,6 +104,7 @@ static QMap<class QString, QSharedPointer<ValueHandler>>
     OPTION("uiColor"                     ,Color              ( {116, 0, 150}   )),
     OPTION("contrastUiColor"             ,Color              ( {39, 0, 50}     )),
     OPTION("contrastOpacity"             ,BoundedInt         ( 0, 255, 190    )),
+    OPTION("borderDarkColor"             ,Bool               ( false          )),
     OPTION("buttons"                     ,ButtonList         ( {}            )),
     // Filename Editor tab
     OPTION("filenamePattern"             ,FilenamePattern    ( {}            )),
@@ -144,8 +145,7 @@ static QMap<QString, QSharedPointer<KeySequence>> recognizedShortcuts = {
 #if !defined(Q_OS_MACOS)
     SHORTCUT("TYPE_OPEN_APP"            ,   "Ctrl+O"                ),
 #endif
-    SHORTCUT("TYPE_PIXELATE"            ,   "B"                     ),
-    SHORTCUT("TYPE_BLUR"                ,                           ),
+    SHORTCUT("TYPE_BLUR"                ,   "B"                     ),
     SHORTCUT("TYPE_INVERT"              ,   "I"                     ),
     SHORTCUT("TYPE_REDO"                ,   "Ctrl+Shift+Z"          ),
     SHORTCUT("TYPE_TEXT"                ,   "T"                     ),
@@ -172,6 +172,7 @@ static QMap<QString, QSharedPointer<KeySequence>> recognizedShortcuts = {
     SHORTCUT("TYPE_SIZEINCREASE"        ,                           ),
     SHORTCUT("TYPE_SIZEDECREASE"        ,                           ),
     SHORTCUT("TYPE_CIRCLECOUNT"         ,                           ),
+    SHORTCUT("TYPE_BORDER"              ,   "O"                     ),
 };
 // clang-format on
 

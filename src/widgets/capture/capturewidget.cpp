@@ -35,6 +35,7 @@
 #include <QDesktopWidget>
 #include <QFontMetrics>
 #include <QLabel>
+#include <QMenu>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QScreen>
@@ -72,6 +73,9 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
   , m_existingObjectIsChanged(false)
   , m_startMove(false)
   , m_toolSizeByKeyboard(0)
+  , m_borderEnabled(true)
+  , m_borderDark(m_config.borderDarkColor())
+  , m_borderActiveColor(QColor(115, 198, 96))
 {
     m_undoStack.setUndoLimit(ConfigHandler().undoLimit());
 
@@ -181,6 +185,9 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
     m_buttonHandler->hide();
 
     initButtons();
+    if (m_borderButton) {
+        m_borderButton->setColor(m_borderActiveColor);
+    }
     initSelection(); // button handler must be initialized before
     initShortcuts(); // must be called after initSelection
     // init magnify
@@ -298,6 +305,9 @@ void CaptureWidget::initButtons()
         if (t == CaptureTool::TYPE_SELECTIONINDICATOR) {
             m_sizeIndButton = b;
         }
+        if (t == CaptureTool::TYPE_BORDER) {
+            m_borderButton = b;
+        }
         b->setColor(m_uiColor);
         b->hide();
         // must be enabled for SelectionWidget's eventFilter to work correctly
@@ -357,6 +367,28 @@ void CaptureWidget::handleButtonRightClick(CaptureToolButton* b)
         return;
     }
 
+    // Border button right-click: show light/dark color menu
+    if (b->tool()->type() == CaptureTool::TYPE_BORDER) {
+        QMenu menu(this);
+        QAction* lightAction = menu.addAction(tr("Light Border"));
+        QAction* darkAction = menu.addAction(tr("Dark Border"));
+        lightAction->setCheckable(true);
+        darkAction->setCheckable(true);
+        lightAction->setChecked(!m_borderDark);
+        darkAction->setChecked(m_borderDark);
+        QAction* chosen = menu.exec(QCursor::pos());
+        if (chosen == lightAction) {
+            m_borderDark = false;
+        } else if (chosen == darkAction) {
+            m_borderDark = true;
+        }
+        m_config.setBorderDarkColor(m_borderDark);
+        if (m_borderEnabled) {
+            repaint();
+        }
+        return;
+    }
+
     // if button already selected, do not deselect it on right click
     if (!m_activeButton || m_activeButton != b) {
         setState(b);
@@ -405,7 +437,30 @@ void CaptureWidget::initHelpMessage()
 
 QPixmap CaptureWidget::pixmap()
 {
-    return m_context.selectedScreenshotArea();
+    QPixmap result = m_context.selectedScreenshotArea();
+    if (m_borderEnabled) {
+        int borderThickness = 6;
+        QColor borderColor = m_borderDark ? QColor(138, 138, 138) // #8a8a8a dark
+                                          : QColor(228, 228, 228); // #e4e4e4 light
+        QPainter painter(&result);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(borderColor);
+        // Top strip
+        painter.drawRect(0, 0, result.width(), borderThickness);
+        // Bottom strip
+        painter.drawRect(
+          0, result.height() - borderThickness, result.width(), borderThickness);
+        // Left strip
+        painter.drawRect(
+          0, borderThickness, borderThickness, result.height() - 2 * borderThickness);
+        // Right strip
+        painter.drawRect(
+          result.width() - borderThickness,
+          borderThickness,
+          borderThickness,
+          result.height() - 2 * borderThickness);
+    }
+    return result;
 }
 
 // Finish whatever the current tool is doing, if there is a current active
@@ -1131,10 +1186,19 @@ void CaptureWidget::setState(CaptureToolButton* b)
     if (b->tool()->isSelectable()) {
         if (m_activeButton != b) {
             if (m_activeButton) {
-                m_activeButton->setColor(m_uiColor);
+                // Keep border button highlighted if border is enabled
+                if (m_activeButton == m_borderButton && m_borderEnabled) {
+                    m_activeButton->setColor(m_borderActiveColor);
+                } else {
+                    m_activeButton->setColor(m_uiColor);
+                }
             }
             m_activeButton = b;
-            m_activeButton->setColor(m_contrastUiColor);
+            if (b == m_borderButton) {
+                m_activeButton->setColor(m_borderEnabled ? m_borderActiveColor : m_uiColor);
+            } else {
+                m_activeButton->setColor(m_contrastUiColor);
+            }
             m_panel->setActiveLayer(-1);
             m_panel->setToolWidget(b->tool()->configurationWidget());
         } else if (m_activeButton) {
@@ -1210,6 +1274,9 @@ void CaptureWidget::handleToolSignal(CaptureTool::Request r)
             break;
         case CaptureTool::REQ_DECREASE_TOOL_SIZE:
             setToolSize(m_context.toolSize - 1);
+            break;
+        case CaptureTool::REQ_TOGGLE_BORDER:
+            toggleBorder();
             break;
         default:
             break;
@@ -1752,4 +1819,13 @@ void CaptureWidget::drawInactiveRegion(QPainter* painter)
 
     painter->setClipRegion(grey);
     painter->drawRect(-1, -1, rect().width() + 1, rect().height() + 1);
+}
+
+void CaptureWidget::toggleBorder()
+{
+    m_borderEnabled = !m_borderEnabled;
+    if (m_borderButton) {
+        m_borderButton->setColor(m_borderEnabled ? m_borderActiveColor : m_uiColor);
+    }
+    repaint();
 }

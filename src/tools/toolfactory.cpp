@@ -4,6 +4,7 @@
 #include "toolfactory.h"
 #include "accept/accepttool.h"
 #include "arrow/arrowtool.h"
+#include "border/bordertool.h"
 #include "circle/circletool.h"
 #include "circlecount/circlecounttool.h"
 #include "copy/copytool.h"
@@ -17,7 +18,7 @@
 #include "pencil/penciltool.h"
 #include "pin/pintool.h"
 #include "blur/blurtool.h"
-#include "pixelate/pixelatetool.h"
+
 #include "rectangle/rectangletool.h"
 #include "redo/redotool.h"
 #include "save/savetool.h"
@@ -56,7 +57,6 @@ CaptureTool* ToolFactory::CreateTool(CaptureTool::Type t, QObject* parent)
 #if !defined(Q_OS_MACOS)
         if_TYPE_return_TOOL(TYPE_OPEN_APP, AppLauncher);
 #endif
-        if_TYPE_return_TOOL(TYPE_PIXELATE, PixelateTool);
         if_TYPE_return_TOOL(TYPE_BLUR, BlurTool);
         if_TYPE_return_TOOL(TYPE_REDO, RedoTool);
         if_TYPE_return_TOOL(TYPE_PIN, PinTool);
@@ -66,6 +66,7 @@ CaptureTool* ToolFactory::CreateTool(CaptureTool::Type t, QObject* parent)
         if_TYPE_return_TOOL(TYPE_SIZEDECREASE, SizeDecreaseTool);
         if_TYPE_return_TOOL(TYPE_INVERT, InvertTool);
         if_TYPE_return_TOOL(TYPE_ACCEPT, AcceptTool);
+        if_TYPE_return_TOOL(TYPE_BORDER, BorderTool);
         default:
             return nullptr;
     }
