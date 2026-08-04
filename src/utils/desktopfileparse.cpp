@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "desktopfileparse.h"
+
 #include <QDir>
 #include <QFile>
 #include <QLocale>
@@ -33,6 +34,7 @@ DesktopAppData DesktopFileParser::parseDesktopFile(const QString& fileName,
     bool nameLocaleSet = false;
     bool descriptionLocaleSet = false;
     bool isApplication = false;
+    bool isService = false;
     QTextStream in(&file);
     // enter the desktop entry definition
     while (!in.atEnd() && in.readLine() != QLatin1String("[Desktop Entry]")) {
@@ -77,6 +79,9 @@ DesktopAppData DesktopFileParser::parseDesktopFile(const QString& fileName,
             if (line.contains(QLatin1String("Application"))) {
                 isApplication = true;
             }
+            if (line.contains(QLatin1String("Service"))) {
+                isService = true;
+            }
         } else if (line.startsWith(QLatin1String("Categories"))) {
             res.categories = line.mid(line.indexOf(QLatin1String("=")) + 1)
                                .split(QStringLiteral(";"));
@@ -92,7 +97,8 @@ DesktopAppData DesktopFileParser::parseDesktopFile(const QString& fileName,
         }
     }
     file.close();
-    if (res.exec.isEmpty() || res.name.isEmpty() || !isApplication) {
+    if (res.exec.isEmpty() || res.name.isEmpty() ||
+        (!isApplication && !isService)) {
         ok = false;
     }
     return res;
@@ -109,7 +115,7 @@ int DesktopFileParser::processDirectory(const QDir& dir)
       dir.entryList({ "*.desktop" }, QDir::NoDotAndDotDot | QDir::Files);
     bool ok;
     int length = m_appList.length();
-    for (QString file : entries) {
+    for (const QString& file : entries) {
         DesktopAppData app = parseDesktopFile(dir.absoluteFilePath(file), ok);
         if (ok) {
             m_appList.append(app);
@@ -122,7 +128,7 @@ QVector<DesktopAppData> DesktopFileParser::getAppsByCategory(
   const QString& category)
 {
     QVector<DesktopAppData> res;
-    for (const DesktopAppData& app : m_appList) {
+    for (const DesktopAppData& app : std::as_const(m_appList)) {
         if (app.categories.contains(category)) {
             res.append(app);
         }
@@ -134,7 +140,7 @@ QMap<QString, QVector<DesktopAppData>> DesktopFileParser::getAppsByCategory(
   const QStringList& categories)
 {
     QMap<QString, QVector<DesktopAppData>> res;
-    for (const DesktopAppData& app : m_appList) {
+    for (const DesktopAppData& app : std::as_const(m_appList)) {
         for (const QString& category : categories) {
             if (app.categories.contains(category)) {
                 res[category].append(app);

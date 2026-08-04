@@ -1,8 +1,8 @@
 #include "abstractlogger.h"
-#include "systemnotification.h"
-#include <cassert>
+#include "utils/systemnotification.h"
 
 #include <QFileInfo>
+#include <cassert>
 
 AbstractLogger::AbstractLogger(Channel channel, int targets)
   : m_defaultChannel(channel)
@@ -45,14 +45,14 @@ AbstractLogger AbstractLogger::error(int targets)
     return { Error, targets };
 }
 
-AbstractLogger& AbstractLogger::sendMessage(QString msg, Channel channel)
+AbstractLogger& AbstractLogger::sendMessage(const QString& msg, Channel channel)
 {
     if (m_targets & Notification) {
         SystemNotification().sendMessage(
           msg, messageHeader(channel, Notification), m_notificationPath);
     }
     if (!m_textStreams.isEmpty()) {
-        foreach (auto* stream, m_textStreams) {
+        for (auto* stream : m_textStreams) {
             *stream << messageHeader(channel, String) << msg << "\n";
         }
     }
@@ -77,7 +77,7 @@ AbstractLogger& AbstractLogger::sendMessage(QString msg, Channel channel)
  * @param msg
  * @return
  */
-AbstractLogger& AbstractLogger::operator<<(QString msg)
+AbstractLogger& AbstractLogger::operator<<(const QString& msg)
 {
     sendMessage(msg, m_defaultChannel);
     return *this;
@@ -92,7 +92,7 @@ AbstractLogger& AbstractLogger::addOutputString(QString& str)
 /**
  * @brief Attach a path to a notification so it can be dragged and dropped.
  */
-AbstractLogger& AbstractLogger::attachNotificationPath(QString path)
+AbstractLogger& AbstractLogger::attachNotificationPath(const QString& path)
 {
     if (m_targets & Notification) {
         m_notificationPath = path;

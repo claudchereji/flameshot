@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "magnifierwidget.h"
+
 #include <QApplication>
 #include <QEvent>
 #include <QMouseEvent>
@@ -35,6 +36,9 @@ MagnifierWidget::MagnifierWidget(const QPixmap& p,
 void MagnifierWidget::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
+    if (!p.isActive()) {
+        return;
+    }
     if (m_square) {
         drawMagnifier(p);
     } else {
@@ -78,10 +82,6 @@ void MagnifierWidget::drawMagnifierCircle(QPainter& painter)
                          drawPos.y() + magZoom * (-0.5),
                          magZoom * (m_magPixels),
                          magZoom);
-    QRectF crossHairBorder(drawPos.x() - magZoom * (m_magPixels + 0.5) - 1,
-                           drawPos.y() - magZoom * (m_magPixels + 0.5) - 1,
-                           m_pixels * magZoom + 2,
-                           m_pixels * magZoom + 2);
     const auto frag =
       QPainter::PixmapFragment::create(drawPos, magniRect, magZoom, magZoom);
 

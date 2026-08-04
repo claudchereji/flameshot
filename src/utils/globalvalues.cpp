@@ -2,12 +2,16 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "globalvalues.h"
+
 #include <QApplication>
 #include <QFontMetrics>
+#if defined(Q_OS_MACOS)
+#include <QOperatingSystemVersion>
+#endif
 
 int GlobalValues::buttonBaseSize()
 {
-    return QApplication::fontMetrics().lineSpacing() * 2.2;
+    return QFontMetrics(qApp->font()).lineSpacing() * 2.2;
 }
 
 QString GlobalValues::versionInfo()
@@ -29,6 +33,24 @@ QString GlobalValues::iconPathPNG()
 {
 #if USE_MONOCHROME_ICON
     return QString(":img/app/flameshot.monochrome.png");
+#else
+    return { ":img/app/flameshot.png" };
+#endif
+}
+
+QString GlobalValues::trayIconPath()
+{
+#if USE_MONOCHROME_ICON
+#if defined(Q_OS_MACOS)
+    auto currentMacOsVersion = QOperatingSystemVersion::current();
+    if (currentMacOsVersion >= QOperatingSystemVersion::MacOSBigSur) {
+        return { ":img/app/flameshot.mask.png" };
+    } else {
+        return { ":img/app/flameshot.monochrome.png" };
+    }
+#else
+    return { ":img/app/flameshot.monochrome.png" };
+#endif
 #else
     return { ":img/app/flameshot.png" };
 #endif

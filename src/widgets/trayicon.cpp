@@ -1,12 +1,15 @@
 #include "trayicon.h"
+#include "core/capturerequest.h"
+#include "core/flameshot.h"
+#include "core/flameshotdaemon.h"
+#include "core/qguiappcurrentscreen.h"
+#include "utils/confighandler.h"
+#include "utils/globalvalues.h"
 
-#include "src/core/flameshot.h"
-#include "src/core/flameshotdaemon.h"
-#include "src/utils/globalvalues.h"
-
-#include "src/utils/confighandler.h"
 #include <QApplication>
+#include <QGuiApplication>
 #include <QMenu>
+#include <QScreen>
 #include <QTimer>
 #include <QUrl>
 #include <QVersionNumber>
@@ -17,8 +20,10 @@
 
 TrayIcon::TrayIcon(QObject* parent)
   : QSystemTrayIcon(parent)
+  , m_screenMenu(nullptr)
 {
     initMenu();
+    initScreenMenu();
 
     setToolTip(QStringLiteral("Flameshot"));
 #if defined(Q_OS_MACOS)
@@ -26,18 +31,25 @@ TrayIcon::TrayIcon(QObject* parent)
     // https://bugreports.qt.io/browse/QTBUG-86393
     // https://developer.apple.com/forums/thread/126072
     auto currentMacOsVersion = QOperatingSystemVersion::current();
-    if (currentMacOsVersion >= currentMacOsVersion.MacOSBigSur) {
+    if (currentMacOsVersion >= QOperatingSystemVersion::MacOSBigSur) {
         setContextMenu(m_menu);
     }
 #else
     setContextMenu(m_menu);
 #endif
     QIcon icon =
-      QIcon::fromTheme("flameshot-tray", QIcon(GlobalValues::iconPathPNG()));
+      QIcon::fromTheme("flameshot-tray", QIcon(GlobalValues::trayIconPath()));
+
+#if defined(Q_OS_MACOS)
+    if (currentMacOsVersion >= QOperatingSystemVersion::MacOSBigSur) {
+        icon.setIsMask(true);
+    }
+#endif
+
     setIcon(icon);
 
 #if defined(Q_OS_MACOS)
-    if (currentMacOsVersion < currentMacOsVersion.MacOSBigSur) {
+    if (currentMacOsVersion < QOperatingSystemVersion::MacOSBigSur) {
         // Because of the following issues on MacOS "Catalina":
         // https://bugreports.qt.io/browse/QTBUG-86393
         // https://developer.apple.com/forums/thread/126072
@@ -78,7 +90,7 @@ TrayIcon::TrayIcon(QObject* parent)
     connect(ConfigHandler::getInstance(),
             &ConfigHandler::fileChanged,
             this,
-            [this]() {});
+            [this]() { updateCaptureActionShortcut(); });
 }
 
 TrayIcon::~TrayIcon()
@@ -86,20 +98,25 @@ TrayIcon::~TrayIcon()
     delete m_menu;
 }
 
+#if !defined(DISABLE_UPDATE_CHECKER)
 QAction* TrayIcon::appUpdates()
 {
     return m_appUpdates;
 }
+#endif
 
 void TrayIcon::initMenu()
 {
     m_menu = new QMenu();
 
-    auto* captureAction = new QAction(tr("&Take Screenshot"), this);
-    connect(captureAction, &QAction::triggered, this, [this]() {
+    m_captureAction = new QAction(tr("&Take Screenshot"), this);
+
+    updateCaptureActionShortcut();
+
+    connect(m_captureAction, &QAction::triggered, this, [this]() {
 #if defined(Q_OS_MACOS)
         auto currentMacOsVersion = QOperatingSystemVersion::current();
-        if (currentMacOsVersion >= currentMacOsVersion.MacOSBigSur) {
+        if (currentMacOsVersion >= QOperatingSystemVersion::MacOSBigSur) {
             startGuiCapture();
         } else {
             // It seems it is not relevant for MacOS BigSur (Wait 400 ms to hide
@@ -113,8 +130,8 @@ void TrayIcon::initMenu()
     });
 #endif
     });
-    auto* launcherAction = new QAction(tr("&Open Launcher"), this);
-    connect(launcherAction,
+    m_launcherAction = new QAction(tr("&Open Launcher"), this);
+    connect(m_launcherAction,
             &QAction::triggered,
             Flameshot::instance(),
             &Flameshot::launcher);
@@ -123,10 +140,13 @@ void TrayIcon::initMenu()
             &QAction::triggered,
             Flameshot::instance(),
             &Flameshot::config);
-    auto* infoAction = new QAction(tr("&About"), this);
-    connect(
-      infoAction, &QAction::triggered, Flameshot::instance(), &Flameshot::info);
+    m_infoAction = new QAction(tr("&About"), this);
+    connect(m_infoAction,
+            &QAction::triggered,
+            Flameshot::instance(),
+            &Flameshot::info);
 
+#if !defined(DISABLE_UPDATE_CHECKER)
     m_appUpdates = new QAction(tr("Check for updates"), this);
     connect(m_appUpdates,
             &QAction::triggered,
@@ -136,48 +156,140 @@ void TrayIcon::initMenu()
     connect(FlameshotDaemon::instance(),
             &FlameshotDaemon::newVersionAvailable,
             this,
-            [this](QVersionNumber version) {
-                QString newVersion =
-                  tr("New version %1 is available").arg(version.toString());
-                m_appUpdates->setText(newVersion);
+            [this](const QVersionNumber& version) {
+                if (ConfigHandler().checkForUpdates()) {
+                    QString newVersion =
+                      tr("Download version %1").arg(version.toString());
+                    m_appUpdates->setText(newVersion);
+                    m_appUpdates->setVisible(true);
+
+                    // hack to work around menu not updating when the text /
+                    // visibility is modified Force menu refresh by removing and
+                    // re-adding the action
+                    m_menu->removeAction(m_appUpdates);
+                    m_menu->insertAction(m_infoAction, m_appUpdates);
+                }
             });
+    updateCheckUpdatesMenuVisibility();
+#endif
 
     QAction* quitAction = new QAction(tr("&Quit"), this);
     connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
 
+#ifdef ENABLE_IMGUR
     // recent screenshots
     QAction* recentAction = new QAction(tr("&Latest Uploads"), this);
     connect(recentAction,
             &QAction::triggered,
             Flameshot::instance(),
             &Flameshot::history);
+#endif
+    auto* openSavePathAction = new QAction(tr("&Open Save Path"), this);
+    connect(openSavePathAction,
+            &QAction::triggered,
+            Flameshot::instance(),
+            &Flameshot::openSavePath);
 
-    m_menu->addAction(captureAction);
-    m_menu->addAction(launcherAction);
+    m_menu->addAction(m_captureAction);
+    m_menu->addAction(m_launcherAction);
     m_menu->addSeparator();
+#ifdef ENABLE_IMGUR
     m_menu->addAction(recentAction);
+#endif
+    m_menu->addAction(openSavePathAction);
     m_menu->addSeparator();
     m_menu->addAction(configAction);
     m_menu->addSeparator();
+#if !defined(DISABLE_UPDATE_CHECKER)
     m_menu->addAction(m_appUpdates);
-    m_menu->addAction(infoAction);
+#endif
+    m_menu->addAction(m_infoAction);
     m_menu->addSeparator();
     m_menu->addAction(quitAction);
 }
 
-void TrayIcon::enableCheckUpdatesAction(bool enable)
+void TrayIcon::updateCaptureActionShortcut()
 {
-    if (m_appUpdates != nullptr) {
-        m_appUpdates->setVisible(enable);
-        m_appUpdates->setEnabled(enable);
+#if defined(Q_OS_MACOS)
+    if (!m_captureAction) {
+        return;
     }
-    if (enable) {
-        FlameshotDaemon::instance()->getLatestAvailableVersion();
+
+    QString shortcut = ConfigHandler().shortcut("TAKE_SCREENSHOT");
+    m_captureAction->setShortcut(QKeySequence(shortcut));
+#endif
+}
+
+#if !defined(DISABLE_UPDATE_CHECKER)
+void TrayIcon::updateCheckUpdatesMenuVisibility()
+{
+    if (m_appUpdates == nullptr) {
+        return;
     }
+
+    bool autoCheckEnabled = ConfigHandler().checkForUpdates();
+    if (autoCheckEnabled) {
+        // When auto-check is enabled, hide the menu item initially
+        // It will be shown when a new version is available via a callback
+        m_appUpdates->setVisible(false);
+    } else {
+        m_appUpdates->setVisible(true);
+        m_appUpdates->setText(tr("Check for updates"));
+    }
+}
+#endif
+
+void TrayIcon::initScreenMenu()
+{
+#ifndef Q_OS_MACOS
+    const QList<QScreen*> screens = QGuiApplication::screens();
+    if (screens.size() <= 1) {
+        return;
+    }
+
+    m_screenMenu = new QMenu(tr("Select Screen"));
+
+    QList<QAction*> actions = m_menu->actions();
+    int index = actions.indexOf(m_launcherAction);
+    if (index >= 0 && index + 1 < actions.size()) {
+        m_menu->insertMenu(actions[index + 1], m_screenMenu);
+    } else {
+        m_menu->addMenu(m_screenMenu);
+    }
+
+    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+    int currentIndex = screens.indexOf(currentScreen);
+
+    for (int i = 0; i < screens.size(); ++i) {
+        QScreen* screen = screens[i];
+        QRect geom = screen->geometry();
+        QString screenDescription = tr("Monitor %1: %2 (%3x%4)")
+                                      .arg(i + 1)
+                                      .arg(screen->name())
+                                      .arg(geom.width())
+                                      .arg(geom.height());
+
+        QAction* screenAction = m_screenMenu->addAction(screenDescription);
+        connect(screenAction, &QAction::triggered, this, [this, i]() {
+            // Wait and hide the menu
+            QTimer::singleShot(
+              100, this, [this, i]() { startGuiCaptureOnScreen(i); });
+        });
+    }
+#endif
 }
 
 void TrayIcon::startGuiCapture()
 {
     auto* widget = Flameshot::instance()->gui();
+#if !defined(DISABLE_UPDATE_CHECKER)
     FlameshotDaemon::instance()->showUpdateNotificationIfAvailable(widget);
+#endif
+}
+
+void TrayIcon::startGuiCaptureOnScreen(int screenIndex)
+{
+    CaptureRequest req(CaptureRequest::GRAPHICAL_MODE, 400);
+    req.setSelectedMonitor(screenIndex);
+    Flameshot::instance()->requestCapture(req);
 }

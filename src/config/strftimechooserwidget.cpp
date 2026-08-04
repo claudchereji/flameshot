@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "strftimechooserwidget.h"
+
 #include <QGridLayout>
 #include <QMap>
 #include <QPushButton>
@@ -9,27 +10,33 @@
 StrftimeChooserWidget::StrftimeChooserWidget(QWidget* parent)
   : QWidget(parent)
 {
+    const quint8 MAXCOLUMNS = 2;
     auto* layout = new QGridLayout(this);
-    auto k = m_buttonData.keys();
-    int middle = k.length() / 2;
-    // add the buttons in 2 columns (they need to be even)
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < middle; j++) {
-            QString key = k.last();
-            k.pop_back();
-            QString variable = m_buttonData.value(key);
-            auto* button = new QPushButton(this);
-            button->setText(tr(key.toStdString().data()));
-            button->setToolTip(variable);
-            button->setSizePolicy(QSizePolicy::Expanding,
-                                  QSizePolicy::Expanding);
-            button->setMinimumHeight(25);
-            layout->addWidget(button, j, i);
-            connect(button, &QPushButton::clicked, this, [variable, this]() {
-                emit variableEmitted(variable);
-            });
+    quint8 row = 0;
+    quint8 col = 0;
+    QMapIterator<QString, QString> iterator(m_buttonData);
+
+    while (iterator.hasNext()) {
+        iterator.next();
+
+        QString variable = iterator.value();
+        auto* button = new QPushButton(this);
+        button->setText(tr(iterator.key().toStdString().data()));
+        button->setToolTip(variable);
+        button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        button->setMinimumHeight(25);
+        layout->addWidget(button, row, col);
+        connect(button, &QPushButton::clicked, this, [variable, this]() {
+            emit variableEmitted(variable);
+        });
+
+        col++;
+        if (col >= MAXCOLUMNS) {
+            row++;
+            col = 0;
         }
     }
+
     setLayout(layout);
 }
 
@@ -67,4 +74,6 @@ QMap<QString, QString> StrftimeChooserWidget::m_buttonData{
     { QT_TR_NOOP("Full Date (%m/%d/%y)"), "%D" },
 #endif
     { QT_TR_NOOP("Full Date (%Y-%m-%d)"), "%F" },
+    { QT_TR_NOOP("Full Date (%d-%m-%Y)"), "%d-%m-%Y" },
+
 };

@@ -2,12 +2,13 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "sidepanelwidget.h"
-#include "colorgrabwidget.h"
-#include "src/core/qguiappcurrentscreen.h"
-#include "src/utils/colorutils.h"
-#include "src/utils/pathinfo.h"
-#include "utilitypanel.h"
+#include "utils/colorutils.h"
+#include "utils/pathinfo.h"
+#include "widgets/panel/colorgrabwidget.h"
+#include "widgets/panel/utilitypanel.h"
+
 #include <QApplication>
+#include <QCheckBox>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -32,14 +33,23 @@ SidePanelWidget::SidePanelWidget(QPixmap* p, QWidget* parent)
     auto* colorLayout = new QGridLayout();
 
     // Create Active Tool Size
+    auto* toolSizeHBox = new QHBoxLayout();
     auto* activeToolSizeText = new QLabel(tr("Active tool size: "));
+
+    m_toolSizeSpin = new QSpinBox(this);
+    m_toolSizeSpin->setRange(1, maxToolSize);
+    m_toolSizeSpin->setSingleStep(1);
+    m_toolSizeSpin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+    toolSizeHBox->addWidget(activeToolSizeText);
+    toolSizeHBox->addWidget(m_toolSizeSpin);
 
     m_toolSizeSlider = new QSlider(Qt::Horizontal);
     m_toolSizeSlider->setRange(1, maxToolSize);
     m_toolSizeSlider->setValue(m_toolSize);
     m_toolSizeSlider->setMinimumWidth(minSliderWidth);
 
-    colorLayout->addWidget(activeToolSizeText, 0, 0);
+    colorLayout->addLayout(toolSizeHBox, 0, 0);
     colorLayout->addWidget(m_toolSizeSlider, 1, 0);
 
     // Create Active Color
@@ -71,7 +81,23 @@ SidePanelWidget::SidePanelWidget(QPixmap* p, QWidget* parent)
     m_layout->addWidget(m_colorWheel);
     m_layout->addWidget(m_colorHex);
 
+    QHBoxLayout* gridHBoxLayout = new QHBoxLayout();
+    m_gridCheck = new QCheckBox(tr("Display grid"), this);
+    m_gridSizeSpin = new QSpinBox(this);
+    m_gridSizeSpin->setRange(5, 50);
+    m_gridSizeSpin->setSingleStep(5);
+    m_gridSizeSpin->setValue(10);
+    m_gridSizeSpin->setDisabled(true);
+    m_gridSizeSpin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    gridHBoxLayout->addWidget(m_gridCheck);
+    gridHBoxLayout->addWidget(m_gridSizeSpin);
+    m_layout->addLayout(gridHBoxLayout);
+
     // tool size sigslots
+    connect(m_toolSizeSpin,
+            static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,
+            &SidePanelWidget::toolSizeChanged);
     connect(m_toolSizeSlider,
             &QSlider::valueChanged,
             this,
@@ -81,8 +107,12 @@ SidePanelWidget::SidePanelWidget(QPixmap* p, QWidget* parent)
             this,
             &SidePanelWidget::onToolSizeChanged);
     // color hex editor sigslots
-    connect(m_colorHex, &QLineEdit::editingFinished, this, [=]() {
+    connect(m_colorHex, &QLineEdit::editingFinished, this, [=, this]() {
+#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
         if (!QColor::isValidColor(m_colorHex->text())) {
+#else
+        if (!QColor::isValidColorName(m_colorHex->text())) {
+#endif
             m_colorHex->setText(m_color.name(QColor::HexRgb));
         } else {
             emit colorChanged(m_colorHex->text());
@@ -99,6 +129,15 @@ SidePanelWidget::SidePanelWidget(QPixmap* p, QWidget* parent)
             &color_widgets::ColorWheel::colorSelected,
             this,
             &SidePanelWidget::colorChanged);
+    // Grid feature
+    connect(m_gridCheck, &QCheckBox::clicked, this, [=, this](bool b) {
+        this->m_gridSizeSpin->setEnabled(b);
+        emit this->displayGridChanged(b);
+    });
+    connect(m_gridSizeSpin,
+            qOverload<int>(&QSpinBox::valueChanged),
+            this,
+            &SidePanelWidget::gridSizeChanged);
 }
 
 void SidePanelWidget::onColorChanged(const QColor& color)
@@ -112,6 +151,7 @@ void SidePanelWidget::onToolSizeChanged(int t)
 {
     m_toolSize = qBound(0, t, maxToolSize);
     m_toolSizeSlider->setValue(m_toolSize);
+    m_toolSizeSpin->setValue(m_toolSize);
 }
 
 void SidePanelWidget::startColorGrab()
@@ -131,7 +171,7 @@ void SidePanelWidget::startColorGrab()
             this,
             &SidePanelWidget::onColorGrabAborted);
 
-    emit togglePanel();
+    emit hidePanel();
     m_colorGrabber->startGrabbing();
 }
 
@@ -156,7 +196,7 @@ void SidePanelWidget::onTemporaryColorUpdated(const QColor& color)
 
 void SidePanelWidget::finalizeGrab()
 {
-    emit togglePanel();
+    emit showPanel();
 }
 
 void SidePanelWidget::updateColorNoWheel(const QColor& c)

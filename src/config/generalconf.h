@@ -19,6 +19,15 @@ class GeneralConf : public QWidget
     Q_OBJECT
 public:
     explicit GeneralConf(QWidget* parent = nullptr);
+    enum xywh_position
+    {
+        xywh_none = 0,
+        xywh_top_left = 1,
+        xywh_bottom_left = 2,
+        xywh_top_right = 3,
+        xywh_bottom_right = 4,
+        xywh_center = 5
+    };
 
 public slots:
     void updateComponents();
@@ -28,7 +37,10 @@ private slots:
     void saveLastRegion(bool checked);
     void showSidePanelButtonChanged(bool checked);
     void showDesktopNotificationChanged(bool checked);
+    void showAbortNotificationChanged(bool checked);
+#if !defined(DISABLE_UPDATE_CHECKER)
     void checkForUpdatesChanged(bool checked);
+#endif
     void allowMultipleGuiInstancesChanged(bool checked);
     void autoCloseIdleDaemonChanged(bool checked);
     void autostartChanged(bool checked);
@@ -43,16 +55,32 @@ private slots:
     void togglePathFixed();
     void uploadClientKeyEdited();
     void useJpgForClipboardChanged(bool checked);
-    void setSaveAsFileExtension(QString extension);
+    void setSaveAsFileExtension(const QString& extension);
+    void setGeometryLocation(int index);
+    void setSelGeoHideTime(int v);
+    void setJpegQuality(int v);
+    void setReverseArrow(bool checked);
+    void setInsecurePixelate(bool checked);
+#if !defined(Q_OS_MACOS)
+    void captureActiveMonitorChanged(bool checked);
+#endif
+#if defined(Q_OS_MACOS)
+    void useNativeFullscreenChanged(bool checked);
+#endif
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+    void useX11LegacyScreenshotChanged(bool checked);
+#endif
 
 private:
-    const QString chooseFolder(const QString currentPath = "");
+    const QString chooseFolder(const QString& currentPath = "");
 
     void initAllowMultipleGuiInstances();
     void initAntialiasingPinZoom();
     void initAutoCloseIdleDaemon();
     void initAutostart();
+#if !defined(DISABLE_UPDATE_CHECKER)
     void initCheckForUpdates();
+#endif
     void initConfigButtons();
     void initCopyAndCloseAfterUpload();
     void initCopyOnDoubleClick();
@@ -62,8 +90,10 @@ private:
     void initSaveAfterCopy();
     void initScrollArea();
     void initShowDesktopNotification();
+    void initShowAbortNotification();
     void initShowHelp();
     void initShowMagnifier();
+    void initShowQuitPrompt();
     void initShowSidePanelButton();
     void initShowStartupLaunchMessage();
     void initShowTrayIcon();
@@ -74,6 +104,19 @@ private:
     void initUploadHistoryMax();
     void initUploadClientSecret();
     void initSaveLastRegion();
+    void initShowSelectionGeometry();
+    void initJpegQuality();
+    void initReverseArrow();
+    void initInsecurePixelate();
+#if !defined(Q_OS_MACOS)
+    void initCaptureActiveMonitor();
+#endif
+#if defined(Q_OS_MACOS)
+    void initUseNativeFullscreen();
+#endif
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+    void initUseX11LegacyScreenshot();
+#endif
 
     void _updateComponents(bool allowEmptySavePath);
 
@@ -82,15 +125,19 @@ private:
     QVBoxLayout* m_scrollAreaLayout;
     QScrollArea* m_scrollArea;
     QCheckBox* m_sysNotifications;
+    QCheckBox* m_abortNotifications;
     QCheckBox* m_showTray;
     QCheckBox* m_helpMessage;
     QCheckBox* m_sidePanelButton;
+#if !defined(DISABLE_UPDATE_CHECKER)
     QCheckBox* m_checkForUpdates;
+#endif
     QCheckBox* m_allowMultipleGuiInstances;
     QCheckBox* m_autoCloseIdleDaemon;
     QCheckBox* m_autostart;
     QCheckBox* m_showStartupLaunchMessage;
-    QCheckBox* m_copyAndCloseAfterUpload;
+    QCheckBox* m_showQuitPrompt;
+    QCheckBox* m_copyURLAfterUpload;
     QCheckBox* m_copyPathAfterSave;
     QCheckBox* m_antialiasingPinZoom;
     QCheckBox* m_saveLastRegion;
@@ -112,4 +159,19 @@ private:
     QCheckBox* m_showMagnifier;
     QCheckBox* m_squareMagnifier;
     QCheckBox* m_copyOnDoubleClick;
+    QCheckBox* m_showSelectionGeometry;
+    QComboBox* m_selectGeometryLocation;
+    QSpinBox* m_xywhTimeout;
+    QSpinBox* m_jpegQuality;
+    QCheckBox* m_reverseArrow;
+    QCheckBox* m_insecurePixelate;
+#if !defined(Q_OS_MACOS)
+    QCheckBox* m_captureActiveMonitor;
+#endif
+#if defined(Q_OS_MACOS)
+    QCheckBox* m_useNativeFullscreen;
+#endif
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+    QCheckBox* m_useX11LegacyScreenshot;
+#endif
 };

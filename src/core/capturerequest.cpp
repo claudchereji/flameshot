@@ -2,11 +2,9 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "capturerequest.h"
-#include "confighandler.h"
-#include "imgupload/imguploadermanager.h"
-#include "pinwidget.h"
-#include "src/config/cacheutils.h"
-#include "src/utils/screenshotsaver.h"
+#include "config/cacheutils.h"
+#include "utils/confighandler.h"
+
 #include <QApplication>
 #include <QClipboard>
 #include <QDateTime>
@@ -21,10 +19,13 @@ CaptureRequest::CaptureRequest(CaptureRequest::CaptureMode mode,
   , m_delay(delay)
   , m_tasks(tasks)
   , m_data(std::move(data))
+  , m_selectedMonitor(-1)
+  , m_hasSelectedMonitor(false)
 {
 
     ConfigHandler config;
-    if (config.saveLastRegion()) {
+    if (m_mode == CaptureRequest::CaptureMode::GRAPHICAL_MODE &&
+        config.saveLastRegion()) {
         setInitialSelection(getLastRegion());
     }
 }
@@ -87,4 +88,20 @@ void CaptureRequest::addPinTask(const QRect& pinWindowGeometry)
 void CaptureRequest::setInitialSelection(const QRect& selection)
 {
     m_initialSelection = selection;
+}
+
+void CaptureRequest::setSelectedMonitor(int monitorIndex)
+{
+    m_selectedMonitor = monitorIndex;
+    m_hasSelectedMonitor = true;
+}
+
+int CaptureRequest::selectedMonitor() const
+{
+    return m_selectedMonitor;
+}
+
+bool CaptureRequest::hasSelectedMonitor() const
+{
+    return m_hasSelectedMonitor;
 }

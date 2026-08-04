@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "filenamehandler.h"
-#include "abstractlogger.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/strfparse.h"
+#include "utils/abstractlogger.h"
+#include "utils/confighandler.h"
+#include "utils/strfparse.h"
+
 #include <QDir>
-#include <ctime>
 #include <exception>
 #include <locale>
 
@@ -16,7 +16,7 @@ FileNameHandler::FileNameHandler(QObject* parent)
     auto err = AbstractLogger::error(AbstractLogger::Stderr);
     try {
         std::locale::global(std::locale());
-    } catch (std::exception& e) {
+    } catch (std::exception&) {
         err << "Locales on your system are not properly configured. Falling "
                "back to defaults";
 
@@ -102,7 +102,7 @@ QString FileNameHandler::properScreenshotPath(QString path,
     }
 }
 
-QString FileNameHandler::autoNumerateDuplicate(QString path)
+QString FileNameHandler::autoNumerateDuplicate(const QString& path)
 {
     // add numeration in case of repeated filename in the directory
     // find unused name adding _n where n is a number

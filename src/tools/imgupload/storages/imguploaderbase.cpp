@@ -2,14 +2,15 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "imguploaderbase.h"
-#include "src/core/flameshotdaemon.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/globalvalues.h"
-#include "src/utils/history.h"
-#include "src/utils/screenshotsaver.h"
-#include "src/widgets/imagelabel.h"
-#include "src/widgets/loadspinner.h"
-#include "src/widgets/notificationwidget.h"
+#include "core/flameshotdaemon.h"
+#include "utils/confighandler.h"
+#include "utils/globalvalues.h"
+#include "utils/history.h"
+#include "utils/screenshotsaver.h"
+#include "widgets/imagelabel.h"
+#include "widgets/loadspinner.h"
+#include "widgets/notificationwidget.h"
+
 #include <QApplication>
 // FIXME #include <QBuffer>
 #include <QClipboard>
@@ -37,12 +38,10 @@ ImgUploaderBase::ImgUploaderBase(const QPixmap& capture, QWidget* parent)
     setWindowTitle(tr("Upload image"));
     setWindowIcon(QIcon(GlobalValues::iconPath()));
 
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 10, 0))
     QRect position = frameGeometry();
     QScreen* screen = QGuiApplication::screenAt(QCursor::pos());
     position.moveCenter(screen->availableGeometry().center());
     move(position.topLeft());
-#endif
 
     m_spinner = new LoadSpinner(this);
     m_spinner->setColor(ConfigHandler().uiColor());

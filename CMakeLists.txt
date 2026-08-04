@@ -1,51 +1,65 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.22)
 # cmake_policy(SET CMP0076 OLD)
 
-set(FLAMESHOT_VERSION 12.1.0)
+set(FLAMESHOT_VERSION 14.0.0)
 
 # Flameshot-org
 set(GIT_API_URL "https://api.github.com/repos/flameshot-org/flameshot/releases/latest")
-# Namecheap
-# set(GIT_API_URL "https://api.github.com/repos/namecheap/flameshot/releases/latest")
-
-# TODO - fix it for all linux distros
-#find_package (Git)
-#if (GIT_FOUND)
-#  message("git found: ${GIT_EXECUTABLE} in version     ${GIT_VERSION_STRING}")
-#
-#  # set flameshot updates url
-#  execute_process(COMMAND ${GIT_EXECUTABLE} ls-remote --get-url OUTPUT_VARIABLE GIT_ORIGIN_REMOTE)
-#  message("GIT_ORIGIN_REMOTE: ${GIT_ORIGIN_REMOTE}")
-#  string(REGEX REPLACE ".git\r*\n*$" "/releases/latest" GIT_API_URL ${GIT_ORIGIN_REMOTE})
-#  string(REGEX REPLACE "^.*:" "https://api.github.com/repos/" GIT_API_URL ${GIT_API_URL})
-#  message("GIT_API_URL: '${GIT_API_URL}'")
-#
-#  # get application version
-#  execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0 --match v[0-9]* OUTPUT_VARIABLE FLAMESHOT_VERSION)
-#  string(REGEX REPLACE "\r" "" FLAMESHOT_VERSION ${FLAMESHOT_VERSION})
-#  string(REGEX REPLACE "\n" "" FLAMESHOT_VERSION ${FLAMESHOT_VERSION})
-#  string(REGEX REPLACE "^v" "" FLAMESHOT_VERSION ${FLAMESHOT_VERSION})
-#  message("FLAMESHOT_VERSION: '${FLAMESHOT_VERSION}'")
-#else()
-#  message("git command is not found")
-#endif ()
 
 project(
-        flameshot
-        VERSION ${FLAMESHOT_VERSION}
-        LANGUAGES CXX)
+  flameshot
+  VERSION ${FLAMESHOT_VERSION}
+  LANGUAGES CXX)
 set(PROJECT_NAME_CAPITALIZED "Flameshot")
 
+include(FetchContent)
+#Must be set before fetching external content!
+#QT_DEFAULT_MAJOR_VERSION used by QHotkey
+set(QT_DEFAULT_MAJOR_VERSION 6 CACHE STRING "")
+#QT_VERSION_MAJOR used by Flameshot and QtColorWidgets
+set(QT_VERSION_MAJOR 6 CACHE STRING "")
+#BUILD_SHARED_LIBS used by QHotkey and QtColorWidgets
+option(BUILD_SHARED_LIBS OFF)
+#QHOTKEY_INSTALL used by QHotkey; must be disabled on Windows
+if(WIN32)
+set(QHOTKEY_INSTALL OFF CACHE BOOL "qHotkey install")
+endif()
+
+#Needed due to linker error with QtColorWidget
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+
+# Dependency can be fetched via flatpak builder
+if(EXISTS "${CMAKE_SOURCE_DIR}/external/Qt-Color-Widgets/CMakeLists.txt")
+  add_subdirectory("${CMAKE_SOURCE_DIR}/external/Qt-Color-Widgets" EXCLUDE_FROM_ALL)
+else()
+  FetchContent_Declare(
+    qtColorWidgets
+    GIT_REPOSITORY https://gitlab.com/mattbas/Qt-Color-Widgets.git
+    GIT_TAG 5d52e907e50dc88cf969b41cea44665ff6c475b1
+  )
+  #Workaround for duplicate GUID in windows WIX installer
+  if(WIN32)
+    FetchContent_GetProperties(qtColorWidgets)
+    if(NOT qtcolorwidgets_POPULATED)
+      FetchContent_Populate(qtColorWidgets)
+      add_subdirectory(${qtcolorwidgets_SOURCE_DIR} ${qtcolorwidgets_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endif()
+  else()
+    FetchContent_MakeAvailable(qtColorWidgets)
+  endif()
+endif()
+
 # This can be read from ${PROJECT_NAME} after project() is called
-if (APPLE)
+if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum OS X deployment version")
 endif()
 
 
 # Configuration options
-set(DEFAULT_RUN_IN_PLACE FALSE)
+set(DEFAULT_USE_PORTABLE_CONFIG FALSE)
 if(WIN32)
-  set(DEFAULT_RUN_IN_PLACE TRUE)
+  set(DEFAULT_USE_PORTABLE_CONFIG TRUE)
   # For Windows RC file.
   add_definitions(-DFLAMESHOT_VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR})
   add_definitions(-DFLAMESHOT_VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR})
@@ -53,26 +67,37 @@ if(WIN32)
   add_definitions(-DFLAMESHOT_VERSION_BUILD=1)
   add_definitions(-DFLAMESHOT_VERSION_STRING="${PROJECT_VERSION}")
 elseif(APPLE)
-  set(Qt5_DIR "$(brew --prefix qt5)/lib/cmake/Qt5/" CACHE PATH "directory where Qt5Config.cmake exists.")
-  set(CMAKE_MACOSX_BUNDLE ON)
-  set(CMAKE_MACOSX_RPATH ON)
+  set(Qt6_DIR "$(brew --prefix qt6)/lib/cmake/Qt6/" CACHE PATH "directory where Qt6Config.cmake exists.")
 endif()
-set(RUN_IN_PLACE
-        ${DEFAULT_RUN_IN_PLACE}
-        CACHE BOOL "Run directly in source directory structure")
-
+set(USE_PORTABLE_CONFIG
+  ${DEFAULT_USE_PORTABLE_CONFIG}
+  CACHE BOOL "Store config in application folder")
+if(USE_PORTABLE_CONFIG)
+add_compile_definitions(USE_PORTABLE_CONFIG)
+endif()
 
 option(FLAMESHOT_DEBUG_CAPTURE "Enable mode to make debugging easier" OFF)
 option(USE_MONOCHROME_ICON "Build using monochrome icon as default" OFF)
 option(GENERATE_TS "Regenerate translation source files" OFF)
-option(USE_EXTERNAL_SINGLEAPPLICATION "Use external QtSingleApplication library" OFF)
+option(USE_KDSINGLEAPPLICATION "Use KDSingleApplication library" ON)
+option(USE_BUNDLED_KDSINGLEAPPLICATION "Use a bundled version of the KDSingleApplication library" ${USE_KDSINGLEAPPLICATION})
 option(USE_LAUNCHER_ABSOLUTE_PATH "Use absolute path for the desktop launcher" ON)
 option(USE_WAYLAND_CLIPBOARD "USE KF Gui Wayland Clipboard" OFF)
+option(DISABLE_UPDATE_CHECKER "Disable check for updates" OFF)
+option(ENABLE_IMGUR "Enable Imgur Uploader" OFF)
+
+if(ENABLE_IMGUR)
+  add_compile_definitions(ENABLE_IMGUR)
+endif()
+
+if(DISABLE_UPDATE_CHECKER)
+  add_compile_definitions(DISABLE_UPDATE_CHECKER)
+endif()
 
 include(cmake/StandardProjectSettings.cmake)
 
 add_library(project_options INTERFACE)
-target_compile_features(project_options INTERFACE cxx_std_17)
+target_compile_features(project_options INTERFACE cxx_std_20)
 
 add_library(project_warnings INTERFACE)
 
@@ -87,32 +112,43 @@ include(cmake/CompilerWarnings.cmake)
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(project_options)
 
-# allow for static analysis options include(cmake/StaticAnalyzers.cmake)
+if(USE_KDSINGLEAPPLICATION)
+  if(USE_BUNDLED_KDSINGLEAPPLICATION)
+    set(KDSingleApplication_EXAMPLES OFF CACHE BOOL "Don't build the examples")
+    set(KDSingleApplication_STATIC ON CACHE BOOL "Build static versions of the libraries")
 
-set(QAPPLICATION_CLASS
-        QApplication
-        CACHE STRING "Inheritance class for SingleApplication")
-
-if(USE_EXTERNAL_SINGLEAPPLICATION)
-  # look for external QtSingleApplication
-  # package dev-qt/qtsingleapplication provides no symlink to current version
-  set(qtsingleapplication_libs libQt5Solutions_SingleApplication-2.6 Qt5Solutions_SingleApplication-2.6)
-  find_library(QTSINGLEAPPLICATION_LIBRARY NAMES ${qtsingleapplication_libs})
-  message(STATUS "Using external SingleApplication library")
-else()
-  add_subdirectory(external/singleapplication)
-  set(QTSINGLEAPPLICATION_LIBRARY SingleApplication::SingleApplication)
+    # Check if KDSingleApplication is available locally
+    if(EXISTS "${CMAKE_SOURCE_DIR}/external/KDSingleApplication/CMakeLists.txt")
+      add_subdirectory("${CMAKE_SOURCE_DIR}/external/KDSingleApplication")
+    else()
+      FetchContent_Declare(
+        kdsingleApplication
+        GIT_REPOSITORY https://github.com/KDAB/KDSingleApplication.git
+        GIT_TAG v1.2.0
+      )
+      FetchContent_MakeAvailable(kdsingleApplication)
+    endif()
+  else()
+    find_package(KDSingleApplication-qt6 REQUIRED)
+  endif()
 endif()
 
+# allow for static analysis options (include after kdsingleApplication because
+# of potential conflict if ENABLE_QT_DEPRECATION_CHECK is used)
+include(cmake/StaticAnalyzers.cmake)
 
+# ToDo: Check if this is used anywhere
 option(BUILD_STATIC_LIBS ON)
-option(BUILD_SHARED_LIBS OFF)
-add_subdirectory(external/Qt-Color-Widgets EXCLUDE_FROM_ALL) 
 
-
-if (APPLE)
-  add_subdirectory(external/QHotkey)
+if(WIN32 OR APPLE)
+  FetchContent_Declare(
+    qHotKey
+    GIT_REPOSITORY https://github.com/flameshot-org/QHotkey
+    GIT_TAG master
+  )
+  FetchContent_MakeAvailable(QHotKey)
 endif()
+
 add_subdirectory(src)
 
 # CPack
@@ -130,13 +166,8 @@ if(WIN32)
   # Include all dynamically linked runtime libraries such as MSVCRxxx.dll
   include(InstallRequiredSystemLibraries)
 
-  if(RUN_IN_PLACE)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-win64")
-    else()
-      set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-win32")
-    endif()
-
+  if(USE_PORTABLE_CONFIG)
+    set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}-win64")
     set(CPACK_GENERATOR ZIP)
 
   else()
@@ -161,13 +192,7 @@ if(WIN32)
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/packaging/win-installer/LICENSE/GPL-3.0.txt")
     set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
 
-    # The correct way would be to include both x32 and x64 into one installer and install the appropriate one. CMake
-    # does not support that, so there are two separate GUID's
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(CPACK_WIX_UPGRADE_GUID "26D8062A-66D9-48D9-8924-42090FB9B3F9")
-    else()
-      set(CPACK_WIX_UPGRADE_GUID "2C53E1B9-51D9-4429-AAE4-B02221959AA5")
-    endif()
+    set(CPACK_WIX_UPGRADE_GUID "26D8062A-66D9-48D9-8924-42090FB9B3F9")
   endif()
 elseif(APPLE)
   set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY 0)

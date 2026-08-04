@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "capturebutton.h"
-#include "src/utils/colorutils.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/globalvalues.h"
+#include "utils/colorutils.h"
+#include "utils/globalvalues.h"
+
 #include <QGraphicsDropShadowEffect>
 
 CaptureButton::CaptureButton(QWidget* parent)
@@ -60,10 +60,10 @@ QString CaptureButton::styleSheet() const
     // foreground color
     QColor color = ColorUtils::colorIsDark(m_mainColor) ? Qt::white : Qt::black;
 
-    return baseSheet.arg(m_mainColor.name())
-      .arg(contrast.name())
-      .arg(GlobalValues::buttonBaseSize() / 2)
-      .arg(color.name());
+    return baseSheet.arg(m_mainColor.name(),
+                         contrast.name(),
+                         QString::number(GlobalValues::buttonBaseSize() / 2),
+                         color.name());
 }
 
 void CaptureButton::setColor(const QColor& c)

@@ -2,17 +2,16 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "configwindow.h"
-#include "abstractlogger.h"
-#include "src/config/configresolver.h"
-#include "src/config/filenameeditor.h"
-#include "src/config/generalconf.h"
-#include "src/config/shortcutswidget.h"
-#include "src/config/strftimechooserwidget.h"
-#include "src/config/visualseditor.h"
-#include "src/utils/colorutils.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/globalvalues.h"
-#include "src/utils/pathinfo.h"
+#include "config/configresolver.h"
+#include "config/filenameeditor.h"
+#include "config/generalconf.h"
+#include "config/shortcutswidget.h"
+#include "config/visualseditor.h"
+#include "utils/colorutils.h"
+#include "utils/confighandler.h"
+#include "utils/globalvalues.h"
+#include "utils/pathinfo.h"
+
 #include <QApplication>
 #include <QDialogButtonBox>
 #include <QFileSystemWatcher>
@@ -33,6 +32,11 @@ ConfigWindow::ConfigWindow(QWidget* parent)
     auto* layout = new QVBoxLayout(this);
     m_tabWidget = new QTabWidget(this);
     m_tabWidget->tabBar()->setUsesScrollButtons(false);
+#if defined(Q_OS_MACOS)
+    // Fix Qt6 macOS bug where tab pane content renders behind the tab bar
+    m_tabWidget->setStyleSheet(
+      "QTabWidget::pane { border-top: 2px solid palette(mid); }");
+#endif
     layout->addWidget(m_tabWidget);
 
     setAttribute(Qt::WA_DeleteOnClose);
@@ -48,6 +52,15 @@ ConfigWindow::ConfigWindow(QWidget* parent)
     bool isDark = ColorUtils::colorIsDark(background);
     QString modifier =
       isDark ? PathInfo::whiteIconPath() : PathInfo::blackIconPath();
+
+    // general
+    m_generalConfig = new GeneralConf();
+    m_generalConfigTab = new QWidget();
+    auto* generalConfigLayout = new QVBoxLayout(m_generalConfigTab);
+    m_generalConfigTab->setLayout(generalConfigLayout);
+    generalConfigLayout->addWidget(m_generalConfig);
+    m_tabWidget->addTab(
+      m_generalConfigTab, QIcon(modifier + "config.svg"), tr("General"));
 
     // visuals
     m_visuals = new VisualsEditor();
@@ -67,15 +80,6 @@ ConfigWindow::ConfigWindow(QWidget* parent)
     m_tabWidget->addTab(m_filenameEditorTab,
                         QIcon(modifier + "name_edition.svg"),
                         tr("Filename Editor"));
-
-    // general
-    m_generalConfig = new GeneralConf();
-    m_generalConfigTab = new QWidget();
-    auto* generalConfigLayout = new QVBoxLayout(m_generalConfigTab);
-    m_generalConfigTab->setLayout(generalConfigLayout);
-    generalConfigLayout->addWidget(m_generalConfig);
-    m_tabWidget->addTab(
-      m_generalConfigTab, QIcon(modifier + "config.svg"), tr("General"));
 
     // shortcuts
     m_shortcuts = new ShortcutsWidget();
@@ -145,11 +149,12 @@ void ConfigWindow::initErrorIndicator(QWidget* tab, QWidget* widget)
     }
 
     // Sigslots
-    connect(ConfigHandler::getInstance(), &ConfigHandler::error, widget, [=]() {
-        widget->setEnabled(false);
-        label->show();
-        btnResolve->show();
-    });
+    connect(
+      ConfigHandler::getInstance(), &ConfigHandler::error, widget, [=, this]() {
+          widget->setEnabled(false);
+          label->show();
+          btnResolve->show();
+      });
     connect(ConfigHandler::getInstance(),
             &ConfigHandler::errorResolved,
             widget,

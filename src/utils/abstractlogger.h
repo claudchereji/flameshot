@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QList>
 #include <QString>
 #include <QTextStream>
 
@@ -37,10 +38,10 @@ public:
     static AbstractLogger warning(int targets = Default);
     static AbstractLogger error(int targets = Default);
 
-    AbstractLogger& sendMessage(QString msg, Channel channel);
-    AbstractLogger& operator<<(QString msg);
+    AbstractLogger& sendMessage(const QString& msg, Channel channel);
+    AbstractLogger& operator<<(const QString& msg);
     AbstractLogger& addOutputString(QString& str);
-    AbstractLogger& attachNotificationPath(QString path);
+    AbstractLogger& attachNotificationPath(const QString& path);
     AbstractLogger& enableMessageHeader(bool enable);
 
 private:

@@ -1,5 +1,6 @@
 #include "history.h"
-#include "src/utils/confighandler.h"
+#include "utils/confighandler.h"
+
 #include <QDir>
 #include <QFile>
 #include <QProcessEnvironment>
@@ -12,9 +13,9 @@ History::History()
 #ifdef Q_OS_WIN
     m_historyPath = QDir::homePath() + "/AppData/Roaming/flameshot/history/";
 #else
-    QString path = QProcessEnvironment::systemEnvironment().value(
+    QString cachepath = QProcessEnvironment::systemEnvironment().value(
       "XDG_CACHE_HOME", QDir::homePath() + "/.cache");
-    m_historyPath = path + "/flameshot/history/";
+    m_historyPath = cachepath + "/flameshot/history/";
 #endif
 
     // Check if directory for history exists and create if doesn't
@@ -44,8 +45,9 @@ void History::save(const QPixmap& pixmap, const QString& fileName)
 
     // save preview
     QFile file(path() + fileName);
-    file.open(QIODevice::WriteOnly);
-    pixmapScaled.save(&file, "PNG");
+    if (file.open(QIODevice::WriteOnly)) {
+        pixmapScaled.save(&file, "PNG");
+    }
 
     history();
 }
@@ -60,7 +62,7 @@ const QList<QString>& History::history()
     int cnt = 0;
     int max = ConfigHandler().uploadHistoryMax();
     m_thumbs.clear();
-    foreach (QString fileName, images) {
+    for (const auto& fileName : images) {
         if (++cnt <= max) {
             m_thumbs.append(fileName);
         } else {

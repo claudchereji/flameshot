@@ -72,3 +72,13 @@ data/flatpak/.flatpak-builder
 
 #MacOS Crap
 .DS_Store
+
+# Miscellaneous
+!docs/dev/Makefile
+
+# Nix
+result
+result-*
+
+# direnv
+.direnv

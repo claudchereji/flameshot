@@ -1,6 +1,6 @@
 #include "overlaymessage.h"
-#include "colorutils.h"
-#include "confighandler.h"
+#include "utils/colorutils.h"
+#include "utils/confighandler.h"
 
 #include <QApplication>
 #include <QDebug>
@@ -31,7 +31,7 @@ OverlayMessage::OverlayMessage(QWidget* parent, const QRect& targetArea)
     setStyleSheet(
       QStringLiteral("QLabel { color: %1; }").arg(m_textColor.name()));
 
-    setMargin(QApplication::fontMetrics().height() / 2);
+    setMargin(QFontMetrics(qApp->font()).height() / 2);
     QWidget::hide();
 }
 
@@ -90,8 +90,7 @@ QString OverlayMessage::compileFromKeyMap(
                               "<td align=\"right\"><b>%1 </b></td>"
                               "<td align=\"left\">&nbsp;&nbsp;%2</td>"
                               "</tr>")
-                 .arg(pair.first)
-                 .arg(pair.second);
+                 .arg(pair.first, pair.second);
     }
     str += QStringLiteral("</table>");
     return str;
@@ -100,6 +99,8 @@ QString OverlayMessage::compileFromKeyMap(
 void OverlayMessage::paintEvent(QPaintEvent* e)
 {
     QPainter painter(this);
+    if (!painter.isActive())
+        return;
     painter.setRenderHint(QPainter::Antialiasing);
 
     painter.setBrush(QBrush(m_fillColor, Qt::SolidPattern));

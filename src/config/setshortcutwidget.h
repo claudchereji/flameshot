@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2020 Yurii Puchkov at Namecheap & Contributors
 
-#ifndef SETSHORTCUTWIDGET_H
-#define SETSHORTCUTWIDGET_H
+#pragma once
 
 #include <QDialog>
 #include <QKeySequence>
@@ -15,19 +14,21 @@ class SetShortcutDialog : public QDialog
     Q_OBJECT
 public:
     explicit SetShortcutDialog(QDialog* parent = nullptr,
-                               QString shortcutName = "");
+                               const QString& shortcutName = "");
     const QKeySequence& shortcut();
 
 public:
-    void keyPressEvent(QKeyEvent*);
-    void keyReleaseEvent(QKeyEvent* event);
+    void keyPressEvent(QKeyEvent*) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
 
-signals:
+private slots:
+    void accept() override;
+    void reject() override;
 
 private:
+    void startCapture();
+
     QVBoxLayout* m_layout;
     QString m_modifier;
     QKeySequence m_ks;
 };
-
-#endif // SETSHORTCUTWIDGET_H

@@ -4,6 +4,8 @@
         <file>img/app/flameshot.svg</file>
         <file>img/app/org.flameshot.Flameshot.png</file>
         <file>img/app/flameshot.png</file>
+        <file>img/app/flameshot.mask.png</file>
+        <file>img/app/flameshot.mask.svg</file>
         <file>img/app/flameshot.monochrome.png</file>
         <file>img/app/flameshot.monochrome.svg</file>
         <file>img/app/keyboard.svg</file>
@@ -101,5 +103,9 @@
         <file>img/material/white/move_down.svg</file>
         <file>img/material/white/move_up.svg</file>
         <file>img/material/white/delete.svg</file>
+        <file>img/material/black/apps.svg</file>
+        <file>img/material/black/image.svg</file>
+        <file>img/material/white/apps.svg</file>
+        <file>img/material/white/image.svg</file>
     </qresource>
 </RCC>

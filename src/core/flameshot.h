@@ -3,20 +3,35 @@
 
 #pragma once
 
-#include "src/core/capturerequest.h"
+#include "core/capturerequest.h"
+
 #include <QObject>
 #include <QPointer>
 #include <QVersionNumber>
+#include <QWindow>
 
 class CaptureWidget;
 class ConfigWindow;
 class InfoWindow;
 class CaptureLauncher;
+class QWidget;
+#ifdef ENABLE_IMGUR
 class UploadHistory;
-#if (defined(Q_OS_MAC) || defined(Q_OS_MAC64) || defined(Q_OS_MACOS) ||        \
-     defined(Q_OS_MACX))
+#endif
+#if (defined(Q_OS_MACOS) || defined(Q_OS_WIN))
 class QHotkey;
 #endif
+
+enum ErrCode : uint8_t
+{
+    E_OK = 0,
+    E_GENERAL,
+    E_ABORTED,
+    E_DBUSCONN,
+    E_SIG_BASE = 128,
+    E_SIGINT = E_SIG_BASE + 2,
+    E_SIGTERM = E_SIG_BASE + 15,
+};
 
 class Flameshot : public QObject
 {
@@ -40,7 +55,12 @@ public slots:
     void config();
 
     void info();
+
+#ifdef ENABLE_IMGUR
     void history();
+#endif
+
+    void openSavePath();
 
     QVersionNumber getVersion();
 
@@ -56,7 +76,9 @@ signals:
 
 public slots:
     void requestCapture(const CaptureRequest& request);
-    void exportCapture(QPixmap p, QRect& selection, const CaptureRequest& req);
+    void exportCapture(const QPixmap& p,
+                       QRect& selection,
+                       const CaptureRequest& req);
 
 private:
     Flameshot();
@@ -71,9 +93,19 @@ private:
     QPointer<CaptureLauncher> m_launcherWindow;
     QPointer<ConfigWindow> m_configWindow;
 
-#if (defined(Q_OS_MAC) || defined(Q_OS_MAC64) || defined(Q_OS_MACOS) ||        \
-     defined(Q_OS_MACX))
+#if defined(Q_OS_MACOS)
+public:
+    void showDockIcon(QWidget* window);
+
+private:
+    void onWindowVisibilityChanged(QWindow::Visibility newVisibility);
+    int m_dockIconVisibleCount = 0;
+#endif
+
+#if (defined(Q_OS_MACOS) || defined(Q_OS_WIN))
     QHotkey* m_HotkeyScreenshotCapture;
+#endif
+#if (defined(Q_OS_MACOS) && ENABLE_IMGUR)
     QHotkey* m_HotkeyScreenshotHistory;
 #endif
 };

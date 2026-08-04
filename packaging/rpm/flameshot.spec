@@ -1,61 +1,58 @@
-#
-# spec file for package flameshot on fedora, rehl, opensuse leap 15.x
-#
-
-# fedora >= 30, rhel >=7
-%define is_rhel_or_fedora (0%{?fedora} && 0%{?fedora} >= 30) || (0%{?rhel} && 0%{?rhel} >= 7)
-# openSUSE Leap >= 15.2
-%define is_suse_leap (0%{?is_opensuse} && 0%{?sle_version} >= 150200)
-
-Name: flameshot
-Version: 12.1.0
-%if %{is_rhel_or_fedora}
+Name:    flameshot
+Version: 14.0.rc3
 Release: 1%{?dist}
-%endif
-%if %{is_suse_leap}
-Release: 1
-%endif
-License: GPLv3+ and ASL 2.0 and GPLv2 and LGPLv3 and Free Art
 Summary: Powerful yet simple to use screenshot software
-URL: https://github.com/flameshot-org/flameshot
-Source0: %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 
-BuildRequires: cmake >= 3.13.0
-BuildRequires: gcc-c++ >= 7
-BuildRequires: fdupes
-%if %{is_suse_leap}
+License: GPL-3.0-or-later
+URL:     https://github.com/flameshot-org/flameshot
+Source0: %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+Vendor:  Flameshot
+
+BuildRequires: git
+BuildRequires: cmake
+BuildRequires: desktop-file-utils
+BuildRequires: jdupes
+
+%if 0%{?suse_version}
+BuildRequires: gcc15-c++
+BuildRequires: ninja
 BuildRequires: update-desktop-files
 BuildRequires: appstream-glib
-%endif
-%if %{is_rhel_or_fedora}
-BuildRequires: libappstream-glib
+%else
+BuildRequires: gcc-c++
 BuildRequires: ninja-build
+BuildRequires: libappstream-glib
 %endif
-BuildRequires: desktop-file-utils
 
-BuildRequires: cmake(Qt5Core) >= 5.9.0
-%if %{is_rhel_or_fedora}
-BuildRequires: cmake(KF5GuiAddons) >= 5.89.0
+BuildRequires: cmake(Qt6Core) >= 6.2.4
+BuildRequires: cmake(Qt6DBus) >= 6.2.4
+BuildRequires: cmake(Qt6Gui) >= 6.2.4
+BuildRequires: cmake(Qt6LinguistTools) >= 6.2.4
+BuildRequires: cmake(Qt6Network) >= 6.2.4
+BuildRequires: cmake(Qt6Svg) >= 6.2.4
+BuildRequires: cmake(Qt6Widgets) >= 6.2.4
+
+%if 0%{?fedora} || 0%{?suse_version} >= 1550 || (0%{?rhel} >= 10 && (0%{?centos} || 0%{?epel}))
+%global wayland_clipboard ON
+BuildRequires:  kf6-kguiaddons-devel >= 6.7.0
+%else
+%global wayland_clipboard OFF
 %endif
-BuildRequires: cmake(Qt5DBus) >= 5.9.0
-BuildRequires: cmake(Qt5Gui) >= 5.9.0
-BuildRequires: cmake(Qt5LinguistTools) >= 5.9.0
-BuildRequires: cmake(Qt5Network) >= 5.9.0
-BuildRequires: cmake(Qt5Svg) >= 5.9.0
-BuildRequires: cmake(Qt5Widgets) >= 5.9.0
-
 
 Requires: hicolor-icon-theme
-%if %{is_rhel_or_fedora}
-Requires: qt5-qtbase >= 5.9.0
-Requires: qt5-qttools >= 5.9.0
-Requires: qt5-qtsvg%{?_isa} >= 5.9.0
+
+%if 0%{?suse_version}
+Requires: qt6-svg
+%else
+Requires: qt6-svg%{?_isa}
 %endif
-%if %{is_suse_leap}
-Requires: libQt5Core5 >= 5.9.0
-Requires: libqt5-qttools >= 5.9.0
-Requires: libQt5Svg5 >= 5.9.0
+
+%if 0%{?suse_version}
+Recommends: qt6-imageformats
+%else
+Recommends: qt6-qtimageformats%{?_isa}
 %endif
+
 Recommends: xdg-desktop-portal%{?_isa}
 Recommends: (xdg-desktop-portal-gnome%{?_isa} if gnome-shell%{?_isa})
 Recommends: (xdg-desktop-portal-kde%{?_isa} if plasma-workspace-wayland%{?_isa})
@@ -71,38 +68,54 @@ Features:
  * Easy to use.
  * In-app screenshot edition.
  * DBus interface.
- * Upload to Imgur
 
 %prep
 %autosetup -p1
 
 %build
-%if %{is_suse_leap}
-%cmake -DCMAKE_BUILD_TYPE=Release
-%endif
-%if %{is_rhel_or_fedora}
-	
-%cmake -G Ninja \
+%if 0%{?suse_version}
+export CXX=/usr/bin/g++-15
+
+cmake -G Ninja -S . -B build \
+    -DCMAKE_INSTALL_PREFIX=%{_prefix} \
     -DCMAKE_BUILD_TYPE=Release \
-    -DUSE_WAYLAND_CLIPBOARD:BOOL=ON \
-%endif
+    -DUSE_WAYLAND_CLIPBOARD=%{wayland_clipboard} \
+    -DBUILD_SHARED_LIBS=OFF
+
+cmake --build build -j $(nproc)
+%else
+%cmake -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DUSE_WAYLAND_CLIPBOARD=%{wayland_clipboard} \
+    -DBUILD_SHARED_LIBS=OFF
+
 %cmake_build
+%endif
 
 %install
-%cmake_install
-# https://fedoraproject.org/wiki/PackagingDrafts/find_lang
-%find_lang Internationalization --with-qt
-%if %{is_suse_leap}
+%if 0%{?suse_version}
+DESTDIR=%{buildroot} cmake --install build
 %suse_update_desktop_file -r org.flameshot.Flameshot Utility X-SuSE-DesktopUtility
+%else
+%cmake_install
 %endif
-%fdupes %{buildroot}%{_datadir}/icons
+
+rm -rf %{buildroot}%{_includedir}/QtColorWidgets
+rm -rf %{buildroot}%{_libdir}/cmake/QtColorWidgets
+rm -f %{buildroot}%{_libdir}/libQtColorWidgets.*
+rm -f %{buildroot}%{_libdir}/pkgconfig/QtColorWidgets.pc
+rm -rf %{buildroot}%{_includedir}/kdsingleapplication-qt6
+rm -rf %{buildroot}%{_libdir}/cmake/KDSingleApplication-qt6
+rm -f %{buildroot}%{_libdir}/libkdsingleapplication-qt6.*
+
+%find_lang Internationalization --with-qt
+
+jdupes %{buildroot}%{_datadir}/icons
 
 %check
-%if %{is_rhel_or_fedora}
-appstream-util validate-relax --nonet %{buildroot}%{_metainfodir}/*.metainfo.xml
-%endif
-%if %{is_suse_leap}
-appstream-util validate-relax --nonet %{buildroot}%{_datadir}/metainfo/*.metainfo.xml
+%if ! (0%{?rhel} <= 9)
+appstream-util validate-relax --nonet %{buildroot}%{_datadir}/metainfo/*.metainfo.xml || true
 %endif
 desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 
@@ -116,12 +129,7 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 %dir %{_datadir}/zsh/site-functions
 %{_bindir}/%{name}
 %{_datadir}/applications/org.flameshot.Flameshot.desktop
-%if %{is_suse_leap}
 %{_datadir}/metainfo/org.flameshot.Flameshot.metainfo.xml
-%endif
-%if %{is_rhel_or_fedora}
-%{_metainfodir}/org.flameshot.Flameshot.metainfo.xml
-%endif
 %{_datadir}/bash-completion/completions/%{name}
 %{_datadir}/zsh/site-functions/_%{name}
 %{_datadir}/fish/vendor_completions.d/%{name}.fish
@@ -132,6 +140,39 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 %{_mandir}/man1/%{name}.1*
 
 %changelog
+* Mon May 18 2026 Jeremy Borgman <borgman.jeremy@pm.me> - 14.0.rc2
+- Beta for 14 release
+
+* Mon Mar 02 2026 Jeremy Borgman <borgman.jeremy@pm.me> - 14.0.rc1
+- Beta for 14 release
+
+* Tue Oct 28 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.3.0
+- Updated for v13.3.0 release
+
+* Fri Oct 24 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.2.0
+- Updated for v13.2.0 release
+
+* Sat Aug 16 2025 Elliott Tallis <tallis.elliott@gmail.com> - 13.1.0-2
+- Minor spec file tweaks
+
+* Fri Aug 15 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.1.0
+- Update for v13.1.0 release
+
+* Wed Aug 06 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.0.1
+- Update for v13.0.1 release
+
+* Sun Aug 03 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.0.0
+- Update for v13 release
+
+* Sun Jul 27 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.0.rc2
+- Beta for 13 release.
+
+* Sat Jul 12 2025 Jeremy Borgman <borgman.jeremy@pm.me> - 13.0.rc1
+- Beta for 13 release.
+
+* Sun Jul 03 2022 Jeremy Borgman <borgman.jeremy@pm.me> - 12.1.0-1
+- Update for 12.1 release.
+
 * Wed Jun 21 2022 Jeremy Borgman <borgman.jeremy@pm.me> - 12.0.0-1
 - Update for 12.0 release.
 

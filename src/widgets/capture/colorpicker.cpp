@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "colorpicker.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/globalvalues.h"
+#include "utils/confighandler.h"
+
 #include <QMouseEvent>
 #include <QPainter>
 
@@ -21,6 +21,10 @@ ColorPicker::ColorPicker(QWidget* parent)
             break;
         }
     }
+}
+void ColorPicker::setNewColor()
+{
+    emit colorSelected(m_colorList.at(m_selectedIndex));
 }
 
 void ColorPicker::mouseMoveEvent(QMouseEvent* e)
@@ -44,5 +48,4 @@ void ColorPicker::showEvent(QShowEvent* event)
 void ColorPicker::hideEvent(QHideEvent* event)
 {
     releaseMouse();
-    emit colorSelected(m_colorList.at(m_selectedIndex));
 }

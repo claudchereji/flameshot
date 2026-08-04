@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "loadspinner.h"
+
 #include <QApplication>
 #include <QPaintEvent>
 #include <QPainter>
@@ -15,7 +16,7 @@ LoadSpinner::LoadSpinner(QWidget* parent)
   , m_growing(true)
 {
     setAttribute(Qt::WA_TranslucentBackground);
-    const int size = QApplication::fontMetrics().height() * 8;
+    const int size = QFontMetrics(qApp->font()).height() * 8;
     setFixedSize(size, size);
     updateFrame();
     // init timer
@@ -54,6 +55,8 @@ void LoadSpinner::stop()
 void LoadSpinner::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
+    if (!painter.isActive())
+        return;
     painter.setRenderHint(QPainter::Antialiasing, true);
     auto pen = QPen(m_color);
 

@@ -2,33 +2,73 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "flameshot.h"
-#include "flameshotdaemon.h"
-#if defined(Q_OS_MACOS)
-#include "external/QHotkey/QHotkey"
+#include "core/flameshotdaemon.h"
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
+#include "qhotkey.h"
 #endif
 
-#include "abstractlogger.h"
-#include "screenshotsaver.h"
-#include "src/config/configresolver.h"
-#include "src/config/configwindow.h"
-#include "src/core/qguiappcurrentscreen.h"
-#include "src/tools/imgupload/imguploadermanager.h"
-#include "src/tools/imgupload/storages/imguploaderbase.h"
-#include "src/utils/confighandler.h"
-#include "src/utils/screengrabber.h"
-#include "src/widgets/capture/capturewidget.h"
-#include "src/widgets/capturelauncher.h"
-#include "src/widgets/imguploaddialog.h"
-#include "src/widgets/infowindow.h"
-#include "src/widgets/uploadhistory.h"
+#if defined(Q_OS_MACOS)
+#include <QWindow>
+#include <objc/message.h>
+
+namespace {
+
+constexpr long NSApplicationActivationPolicyRegular = 0;
+constexpr long NSApplicationActivationPolicyAccessory = 1;
+
+void setActivationPolicy(long policy)
+{
+    auto sharedApp = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
+    auto setPolicy = reinterpret_cast<void (*)(id, SEL, long)>(objc_msgSend);
+    id nsApp = sharedApp(reinterpret_cast<id>(objc_getClass("NSApplication")),
+                         sel_registerName("sharedApplication"));
+    setPolicy(nsApp, sel_registerName("setActivationPolicy:"), policy);
+}
+
+void setActivationPolicyRegular()
+{
+    setActivationPolicy(NSApplicationActivationPolicyRegular);
+}
+
+void setActivationPolicyAccessory()
+{
+    setActivationPolicy(NSApplicationActivationPolicyAccessory);
+}
+
+constexpr const char* visibleInDockProperty = "_visibleInDock";
+
+} // namespace
+
+#include <CoreGraphics/CoreGraphics.h>
+#endif
+
+#include "config/configresolver.h"
+#include "config/configwindow.h"
+#include "core/qguiappcurrentscreen.h"
+#include "utils/abstractlogger.h"
+#include "utils/confighandler.h"
+#include "utils/screengrabber.h"
+#include "utils/screenshotsaver.h"
+#include "widgets/capture/capturewidget.h"
+#include "widgets/capturelauncher.h"
+#include "widgets/infowindow.h"
+
+#ifdef ENABLE_IMGUR
+#include "tools/imgupload/imguploadermanager.h"
+#include "tools/imgupload/storages/imguploaderbase.h"
+#include "widgets/imguploaddialog.h"
+#include "widgets/uploadhistory.h"
+#endif
+
 #include <QApplication>
 #include <QBuffer>
 #include <QDebug>
-#include <QDesktopWidget>
+#include <QDesktopServices>
 #include <QFile>
 #include <QMessageBox>
 #include <QThread>
 #include <QTimer>
+#include <QUrl>
 #include <QVersionNumber>
 
 #if defined(Q_OS_MACOS)
@@ -36,10 +76,12 @@
 #endif
 
 Flameshot::Flameshot()
-  : m_captureWindow(nullptr)
-  , m_haveExternalWidget(false)
-#if defined(Q_OS_MACOS)
+  : m_haveExternalWidget(false)
+  , m_captureWindow(nullptr)
+#if (defined(Q_OS_MACOS) || defined(Q_OS_WIN))
   , m_HotkeyScreenshotCapture(nullptr)
+#endif
+#if (defined(Q_OS_MACOS) && ENABLE_IMGUR)
   , m_HotkeyScreenshotHistory(nullptr)
 #endif
 {
@@ -47,19 +89,21 @@ Flameshot::Flameshot()
     qApp->setStyleSheet(StyleSheet);
 
 #if defined(Q_OS_MACOS)
-    // Try to take a test screenshot, MacOS will request a "Screen Recording"
-    // permissions on the first run. Otherwise it will be hidden under the
-    // CaptureWidget
-    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
-    currentScreen->grabWindow(QApplication::desktop()->winId(), 0, 0, 1, 1);
-
-    // set global shortcuts for MacOS
+    // Request Screen Recording permission via the proper CoreGraphics API
+    if (!CGPreflightScreenCaptureAccess()) {
+        CGRequestScreenCaptureAccess();
+    }
+#endif
+#if (defined(Q_OS_MACOS) || defined(Q_OS_WIN))
+    // Set global shortcuts for MacOS or Windows
     m_HotkeyScreenshotCapture = new QHotkey(
       QKeySequence(ConfigHandler().shortcut("TAKE_SCREENSHOT")), true, this);
     QObject::connect(m_HotkeyScreenshotCapture,
                      &QHotkey::activated,
                      qApp,
                      [this]() { gui(); });
+#endif
+#if (defined(Q_OS_MACOS) && ENABLE_IMGUR)
     m_HotkeyScreenshotHistory = new QHotkey(
       QKeySequence(ConfigHandler().shortcut("SCREENSHOT_HISTORY")), true, this);
     QObject::connect(m_HotkeyScreenshotHistory,
@@ -118,12 +162,21 @@ CaptureWidget* Flameshot::gui(const CaptureRequest& req)
 #ifdef Q_OS_WIN
         m_captureWindow->show();
 #elif defined(Q_OS_MACOS)
-        // In "Emulate fullscreen mode"
-        m_captureWindow->showFullScreen();
+        if (ConfigHandler().useNativeFullscreen()) {
+            m_captureWindow->showFullScreen();
+        } else {
+            m_captureWindow->show();
+        }
         m_captureWindow->activateWindow();
         m_captureWindow->raise();
 #else
-        m_captureWindow->showFullScreen();
+        if (ConfigHandler().useX11LegacyScreenshot()) {
+            m_captureWindow->show();
+            m_captureWindow->raise();
+            m_captureWindow->activateWindow();
+        } else {
+            m_captureWindow->showFullScreen();
+        }
 //        m_captureWindow->show(); // For CaptureWidget Debugging under Linux
 #endif
         return m_captureWindow;
@@ -139,28 +192,40 @@ void Flameshot::screen(CaptureRequest req, const int screenNumber)
         return;
     }
 
-    bool ok = true;
-    QScreen* screen;
+    bool ok = false;
+    QPixmap p;
+    QRect geometry;
 
     if (screenNumber < 0) {
-        QPoint globalCursorPos = QCursor::pos();
-        screen = qApp->screenAt(globalCursorPos);
+        ScreenGrabber grabber;
+        p = grabber.grabEntireDesktop(ok);
+        if (ok) {
+            QScreen* selectedScreen = grabber.getSelectedScreen();
+            if (selectedScreen) {
+                geometry = ScreenGrabber().screenGeometry(selectedScreen);
+            } else {
+                ok = false;
+            }
+        }
     } else if (screenNumber >= qApp->screens().count()) {
         AbstractLogger() << QObject::tr(
           "Requested screen exceeds screen count");
-        emit captureFailed();
-        return;
+        ok = false;
     } else {
-        screen = qApp->screens()[screenNumber];
+        // Specific screen number provided - use grabScreen to bypass selector
+        QScreen* screen = qApp->screens()[screenNumber];
+        p = ScreenGrabber().grabScreen(screen, ok);
+        if (ok) {
+            geometry = ScreenGrabber().screenGeometry(screen);
+        }
     }
-    QPixmap p(ScreenGrabber().grabScreen(screen, ok));
+
     if (ok) {
-        QRect geometry = ScreenGrabber().screenGeometry(screen);
         QRect region = req.initialSelection();
         if (region.isNull()) {
-            region = ScreenGrabber().screenGeometry(screen);
+            region = geometry;
         } else {
-            QRect screenGeom = ScreenGrabber().screenGeometry(screen);
+            QRect screenGeom = geometry;
             screenGeom.moveTopLeft({ 0, 0 });
             region = region.intersected(screenGeom);
             p = p.copy(region);
@@ -182,13 +247,9 @@ void Flameshot::full(const CaptureRequest& req)
     }
 
     bool ok = true;
-    QPixmap p(ScreenGrabber().grabEntireDesktop(ok));
-    QRect region = req.initialSelection();
-    if (!region.isNull()) {
-        p = p.copy(region);
-    }
+    QPixmap p(ScreenGrabber().grabFullDesktop(ok));
     if (ok) {
-        QRect selection; // `flameshot full` does not support --selection
+        QRect selection; // `flameshot full` does not support region selection
         exportCapture(p, selection, req);
     } else {
         emit captureFailed();
@@ -206,8 +267,7 @@ void Flameshot::launcher()
     }
     m_launcherWindow->show();
 #if defined(Q_OS_MACOS)
-    m_launcherWindow->activateWindow();
-    m_launcherWindow->raise();
+    showDockIcon(m_launcherWindow);
 #endif
 }
 
@@ -220,9 +280,14 @@ void Flameshot::config()
     if (m_configWindow == nullptr) {
         m_configWindow = new ConfigWindow();
         m_configWindow->show();
+        // Call show() first, otherwise the correct geometry cannot be fetched
+        // for centering the window on the screen
+        QRect position = m_configWindow->frameGeometry();
+        QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+        position.moveCenter(currentScreen->availableGeometry().center());
+        m_configWindow->move(position.topLeft());
 #if defined(Q_OS_MACOS)
-        m_configWindow->activateWindow();
-        m_configWindow->raise();
+        showDockIcon(m_configWindow);
 #endif
     }
 }
@@ -232,12 +297,12 @@ void Flameshot::info()
     if (m_infoWindow == nullptr) {
         m_infoWindow = new InfoWindow();
 #if defined(Q_OS_MACOS)
-        m_infoWindow->activateWindow();
-        m_infoWindow->raise();
+        showDockIcon(m_infoWindow);
 #endif
     }
 }
 
+#ifdef ENABLE_IMGUR
 void Flameshot::history()
 {
     static UploadHistory* historyWidget = nullptr;
@@ -248,12 +313,65 @@ void Flameshot::history()
             historyWidget = nullptr;
         });
     }
+
     historyWidget->show();
+    // Call show() first, otherwise the correct geometry cannot be fetched
+    // for centering the window on the screen
+    QRect position = historyWidget->frameGeometry();
+    QScreen* currentScreen = QGuiAppCurrentScreen().currentScreen();
+    position.moveCenter(currentScreen->availableGeometry().center());
+    historyWidget->move(position.topLeft());
 
 #if defined(Q_OS_MACOS)
-    historyWidget->activateWindow();
-    historyWidget->raise();
+    showDockIcon(historyWidget);
 #endif
+}
+#endif
+
+#if defined(Q_OS_MACOS)
+void Flameshot::onWindowVisibilityChanged(QWindow::Visibility newVisibility)
+{
+    auto* qw = qobject_cast<QWindow*>(sender());
+    if (!qw) {
+        return;
+    }
+
+    if (newVisibility == QWindow::Hidden) {
+        qw->setProperty(visibleInDockProperty, false);
+        --m_dockIconVisibleCount;
+        if (m_dockIconVisibleCount == 0) {
+            setActivationPolicyAccessory();
+        }
+    } else {
+        bool windowTrackedInDock = qw->property(visibleInDockProperty).toBool();
+        if (!windowTrackedInDock) {
+            qw->setProperty(visibleInDockProperty, true);
+            ++m_dockIconVisibleCount;
+            setActivationPolicyRegular();
+        }
+    }
+}
+
+void Flameshot::showDockIcon(QWidget* w)
+{
+    QWindow* qw = w->windowHandle();
+    if (!qw) {
+        return;
+    }
+
+    connect(qw,
+            &QWindow::visibilityChanged,
+            this,
+            &Flameshot::onWindowVisibilityChanged);
+}
+#endif
+
+void Flameshot::openSavePath()
+{
+    QString savePath = ConfigHandler().savePath();
+    if (!savePath.isEmpty()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(savePath));
+    }
 }
 
 QVersionNumber Flameshot::getVersion()
@@ -279,8 +397,9 @@ Flameshot::Origin Flameshot::origin()
 bool Flameshot::resolveAnyConfigErrors()
 {
     bool resolved = true;
-    ConfigHandler config;
-    if (!config.checkUnrecognizedSettings() || !config.checkSemantics()) {
+    ConfigHandler confighandler;
+    if (!confighandler.checkUnrecognizedSettings() ||
+        !confighandler.checkSemantics()) {
         auto* resolver = new ConfigResolver();
         QObject::connect(
           resolver, &ConfigResolver::rejected, [resolver, &resolved]() {
@@ -333,7 +452,7 @@ void Flameshot::requestCapture(const CaptureRequest& request)
     }
 }
 
-void Flameshot::exportCapture(QPixmap capture,
+void Flameshot::exportCapture(const QPixmap& capture,
                               QRect& selection,
                               const CaptureRequest& req)
 {
@@ -342,8 +461,6 @@ void Flameshot::exportCapture(QPixmap capture,
     QString path = req.path();
 
     if (tasks & CR::PRINT_GEOMETRY) {
-        QByteArray byteArray;
-        QBuffer buffer(&byteArray);
         QTextStream(stdout)
           << selection.width() << "x" << selection.height() << "+"
           << selection.x() << "+" << selection.y() << "\n";
@@ -366,11 +483,10 @@ void Flameshot::exportCapture(QPixmap capture,
         QByteArray byteArray;
         QBuffer buffer(&byteArray);
         capture.save(&buffer, "PNG");
-        QFile file;
-        file.open(stdout, QIODevice::WriteOnly);
-
-        file.write(byteArray);
-        file.close();
+        if (QFile file; file.open(stdout, QIODevice::WriteOnly)) {
+            file.write(byteArray);
+            file.close();
+        }
     }
 
     if (tasks & CR::SAVE) {
@@ -393,6 +509,7 @@ void Flameshot::exportCapture(QPixmap capture,
         }
     }
 
+#ifdef ENABLE_IMGUR
     if (tasks & CR::UPLOAD) {
         if (!ConfigHandler().uploadWithoutConfirmation()) {
             auto* dialog = new ImgUploadDialog();
@@ -407,20 +524,17 @@ void Flameshot::exportCapture(QPixmap capture,
         // NOTE: lambda can't capture 'this' because it might be destroyed later
         CR::ExportTask tasks = tasks;
         QObject::connect(
-          widget, &ImgUploaderBase::uploadOk, [=](const QUrl& url) {
-              if (ConfigHandler().copyAndCloseAfterUpload()) {
+          widget, &ImgUploaderBase::uploadOk, [=, this](const QUrl& url) {
+              if (ConfigHandler().copyURLAfterUpload()) {
                   if (!(tasks & CR::COPY)) {
                       FlameshotDaemon::copyToClipboard(
                         url.toString(), tr("URL copied to clipboard."));
-                      widget->close();
-                  } else {
-                      widget->showPostUploadDialog();
                   }
-              } else {
                   widget->showPostUploadDialog();
               }
           });
     }
+#endif
 
     if (!(tasks & CR::UPLOAD)) {
         emit captureTaken(capture);

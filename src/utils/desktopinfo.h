@@ -14,8 +14,11 @@ public:
     {
         GNOME,
         KDE,
+        COSMIC,
         OTHER,
-        SWAY
+        QTILE,
+        WLROOTS,
+        HYPRLAND
     };
 
     bool waylandDetected();

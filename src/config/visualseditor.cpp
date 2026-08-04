@@ -2,13 +2,16 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "visualseditor.h"
-#include "src/config/buttonlistview.h"
-#include "src/config/colorpickereditor.h"
-#include "src/config/extendedslider.h"
-#include "src/config/uicoloreditor.h"
-#include "src/utils/confighandler.h"
+#include "config/buttonlistview.h"
+#include "config/colorpickereditor.h"
+#include "config/extendedslider.h"
+#include "config/uicoloreditor.h"
+#include "utils/confighandler.h"
+
+#include <QDirIterator>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMessageBox>
 
 VisualsEditor::VisualsEditor(QWidget* parent)
   : QWidget(parent)
@@ -57,6 +60,8 @@ void VisualsEditor::initOpacitySlider()
 
 void VisualsEditor::initWidgets()
 {
+    initTranslations();
+
     m_tabWidget = new QTabWidget();
     m_layout->addWidget(m_tabWidget);
 
@@ -88,4 +93,56 @@ void VisualsEditor::initWidgets()
             m_buttonList,
             &ButtonListView::selectAll);
     listLayout->addWidget(setAllButtons);
+}
+
+void VisualsEditor::initTranslations()
+{
+    auto* localLayout = new QHBoxLayout();
+    localLayout->addWidget(new QLabel(tr("UI language")));
+    m_selectTranslation = new QComboBox(this);
+
+    QStringList translations;
+    QString tmpFilename;
+    for (const QString& path : PathInfo::translationsPaths()) {
+        QDirIterator it(path,
+                        QStringList() << QStringLiteral("*.qm"),
+                        QDir::NoDotAndDotDot | QDir::Files);
+        while (it.hasNext()) {
+            it.next();
+            tmpFilename = it.fileName();
+
+            if (tmpFilename.startsWith(
+                  QStringLiteral("Internationalization_"))) {
+                tmpFilename =
+                  tmpFilename.remove(QStringLiteral("Internationalization_"))
+                    .remove(QStringLiteral(".qm"));
+                if (!translations.contains(tmpFilename)) {
+                    translations << tmpFilename;
+                }
+            }
+        }
+    }
+    translations.sort();
+    translations.push_front(QStringLiteral("auto"));
+    m_selectTranslation->addItems(translations);
+
+    QString language = ConfigHandler().value("uiLanguage").toString();
+    m_selectTranslation->setCurrentIndex(
+      m_selectTranslation->findText(language));
+
+    connect(m_selectTranslation,
+            &QComboBox::currentTextChanged,
+            this,
+            [this](const QString& text) {
+                ConfigHandler().setUiLanguage(text);
+                // TODO: Retranslate UI without restart
+                QMessageBox::information(
+                  this,
+                  tr("Configuration"),
+                  tr("Flameshot must be restarted to apply these changes!"));
+            });
+
+    localLayout->addWidget(m_selectTranslation);
+    localLayout->addStretch();
+    m_layout->addLayout(localLayout);
 }

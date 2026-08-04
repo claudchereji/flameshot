@@ -16,10 +16,7 @@ public:
 
     bool nativeEventFilter(const QByteArray& eventType,
                            void* message,
-                           long* result);
-
-signals:
-    void printPressed();
+                           qintptr* result);
 
 private:
     quint32 getNativeModifier(Qt::KeyboardModifiers modifiers);

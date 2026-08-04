@@ -26,7 +26,7 @@ public:
     bool buttonsAreInside() const;
     size_t size() const;
 
-    void setButtons(const QVector<CaptureToolButton*>);
+    void setButtons(const QVector<CaptureToolButton*>&);
     bool contains(const QPoint& p) const;
     void updateScreenRegions(const QVector<QRect>& rects);
     void updateScreenRegions(const QRect& rect);
@@ -73,7 +73,7 @@ private:
     void updateBlockedSides();
     void expandSelection();
     void positionButtonsInside(int index);
-    void ensureSelectionMinimunSize();
+    void ensureSelectionMinimumSize();
     void moveButtonsToPoints(const QVector<QPoint>& points, int& index);
     void adjustHorizontalCenter(QPoint& center);
 };

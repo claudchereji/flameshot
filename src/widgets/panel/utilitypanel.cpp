@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "utilitypanel.h"
-#include "capturewidget.h"
+#include "widgets/capture/capturewidget.h"
+
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QPropertyAnimation>
@@ -82,11 +83,12 @@ void UtilityPanel::pushWidget(QWidget* widget)
 
 void UtilityPanel::show()
 {
+    if (!m_internalPanel->isHidden()) {
+        return;
+    }
     setAttribute(Qt::WA_TransparentForMouseEvents, false);
-    m_showAnimation->setStartValue(QRect(-width(), 0, 0, height()));
-    m_showAnimation->setEndValue(QRect(0, 0, width(), height()));
     m_internalPanel->show();
-    m_showAnimation->start();
+    m_internalPanel->setGeometry(0, 0, width(), height());
 #if (defined(Q_OS_WIN) || defined(Q_OS_MACOS))
     move(0, 0);
 #endif
@@ -95,10 +97,10 @@ void UtilityPanel::show()
 
 void UtilityPanel::hide()
 {
+    if (m_internalPanel->isHidden()) {
+        return;
+    }
     setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_hideAnimation->setStartValue(QRect(0, 0, width(), height()));
-    m_hideAnimation->setEndValue(QRect(-width(), 0, 0, height()));
-    m_hideAnimation->start();
     m_internalPanel->hide();
     QWidget::hide();
 }
@@ -137,9 +139,9 @@ void UtilityPanel::initInternalPanel()
 
     m_captureTools = new QListWidget(this);
     connect(m_captureTools,
-            SIGNAL(currentRowChanged(int)),
+            &QListWidget::currentRowChanged,
             this,
-            SLOT(onCurrentRowChanged(int)));
+            &UtilityPanel::onCurrentRowChanged);
 
     auto* layersButtons = new QHBoxLayout();
     m_layersLayout->addLayout(layersButtons);
@@ -171,9 +173,9 @@ void UtilityPanel::initInternalPanel()
     layersButtons->addStretch();
 
     connect(m_buttonDelete,
-            SIGNAL(clicked(bool)),
+            &QPushButton::clicked,
             this,
-            SLOT(slotButtonDelete(bool)));
+            &UtilityPanel::slotButtonDelete);
 
     connect(m_buttonMoveUp,
             &QPushButton::clicked,

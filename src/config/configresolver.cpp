@@ -1,8 +1,7 @@
-#include "src/config/configresolver.h"
-#include "src/config/configerrordetails.h"
-#include "src/utils/confighandler.h"
+#include "configresolver.h"
+#include "config/configerrordetails.h"
+#include "utils/confighandler.h"
 
-#include "src/utils/valuehandler.h"
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QSplitter>
@@ -112,7 +111,7 @@ void ConfigResolver::populate()
         auto* resolveAll = new QPushButton(tr("Resolve all"));
         resolveAll->setToolTip(tr("Resolve all listed errors."));
         buttons->addButton(resolveAll, BBox::ResetRole);
-        connect(resolveAll, &QPushButton::clicked, this, [=]() {
+        connect(resolveAll, &QPushButton::clicked, this, [=, this]() {
             for (const auto& key : semanticallyWrong) {
                 ConfigHandler().resetValue(key);
             }

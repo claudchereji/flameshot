@@ -1,14 +1,17 @@
 #include "valuehandler.h"
-#include "capturetool.h"
-#include "colorpickerwidget.h"
-#include "confighandler.h"
-#include "screengrabber.h"
+#include "tools/capturetool.h"
+#include "utils/confighandler.h"
+#include "utils/screengrabber.h"
+#include "widgets/colorpickerwidget.h"
+
 #include <QColor>
 #include <QFileInfo>
 #include <QImageWriter>
 #include <QKeySequence>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QVariant>
+#include <memory>
 
 // VALUE HANDLER
 
@@ -96,8 +99,13 @@ Color::Color(QColor def)
 bool Color::check(const QVariant& val)
 {
     QString str = val.toString();
+#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
+    bool validColor = QColor::isValidColor(str);
+#else
+    bool validColor = QColor::isValidColorName(str);
+#endif
     // Disable #RGB, #RRRGGGBBB and #RRRRGGGGBBBB formats that QColor supports
-    return QColor::isValidColor(str) &&
+    return validColor &&
            (str[0] != '#' ||
             (str.length() != 4 && str.length() != 10 && str.length() != 13));
 }
@@ -165,7 +173,7 @@ QVariant BoundedInt::fallback()
 
 QString BoundedInt::expected()
 {
-    return QStringLiteral("number between %1 and %2").arg(m_min).arg(m_max);
+    return QStringLiteral("number between %1 and %2").arg(m_min, m_max);
 }
 
 // LOWER BOUNDED INT
@@ -210,7 +218,7 @@ bool KeySequence::check(const QVariant& val)
 
 QVariant KeySequence::fallback()
 {
-    return m_fallback;
+    return process(m_fallback);
 }
 
 QString KeySequence::expected()
@@ -233,6 +241,10 @@ QVariant KeySequence::process(const QVariant& val)
     if (str == "Enter") {
         return QKeySequence(Qt::Key_Return).toString();
     }
+    if (str.length() > 0) {
+        // Make the "main" key in sequence (last one) lower-case.
+        str[str.length() - 1] = str[str.length() - 1].toLower();
+    }
     return str;
 }
 
@@ -240,7 +252,7 @@ QVariant KeySequence::process(const QVariant& val)
 
 bool ExistingDir::check(const QVariant& val)
 {
-    if (!val.canConvert(QVariant::String) || val.toString().isEmpty()) {
+    if (!val.canConvert<QString>() || val.toString().isEmpty()) {
         return false;
     }
     QFileInfo info(val.toString());
@@ -391,11 +403,15 @@ bool UserColors::check(const QVariant& val)
     if (!val.isValid()) {
         return false;
     }
-    if (!val.canConvert(QVariant::StringList)) {
+    if (!val.canConvert<QStringList>()) {
         return false;
     }
     for (const QString& str : val.toStringList()) {
+#if QT_VERSION < QT_VERSION_CHECK(6, 4, 0)
         if (!QColor::isValidColor(str) && str != "picker") {
+#else
+        if (!QColor::isValidColorName(str) && str != "picker") {
+#endif
             return false;
         }
     }
@@ -441,8 +457,7 @@ QString UserColors::expected()
 {
     return QStringLiteral(
              "list of colors(min %1 and max %2) separated by comma")
-      .arg(m_min - 1)
-      .arg(m_max - 1);
+      .arg(m_min - 1, m_max - 1);
 }
 
 QVariant UserColors::representation(const QVariant& val)
@@ -466,7 +481,7 @@ QVariant UserColors::representation(const QVariant& val)
 
 bool SaveFileExtension::check(const QVariant& val)
 {
-    if (!val.canConvert(QVariant::String) || val.toString().isEmpty()) {
+    if (!val.canConvert<QString>() || val.toString().isEmpty()) {
         return false;
     }
 
@@ -477,7 +492,7 @@ bool SaveFileExtension::check(const QVariant& val)
     }
 
     QStringList imageFormatList;
-    foreach (auto imageFormat, QImageWriter::supportedImageFormats())
+    for (const auto& imageFormat : QImageWriter::supportedImageFormats())
         imageFormatList.append(imageFormat);
 
     if (!imageFormatList.contains(extension)) {
@@ -508,7 +523,7 @@ QString SaveFileExtension::expected()
 bool Region::check(const QVariant& val)
 {
     QVariant region = process(val);
-    return process(val).isValid();
+    return region.isValid();
 }
 
 #include <QApplication> // TODO remove after FIXME (see below)
@@ -516,11 +531,16 @@ bool Region::check(const QVariant& val)
 
 QVariant Region::process(const QVariant& val)
 {
-    // FIXME: This is temporary, just before D-Bus is removed
-    char** argv = new char*[1];
-    int* argc = new int{ 0 };
-    if (QGuiApplication::screens().empty()) {
-        new QApplication(*argc, argv);
+    // Create a temporary QApplication if there is no global Qt application
+    // instance at all. Creating one while a QCoreApplication already exists
+    // is forbidden by Qt: the second constructor aborts early, but its
+    // destructor still runs and corrupts global state (e.g. Wayland
+    // connections), causing subsequent portal calls to hang.
+    auto argv = std::make_unique<char*[]>(1);
+    auto argc = std::make_unique<int>(0);
+    std::unique_ptr<QApplication> tempApp;
+    if (!QCoreApplication::instance()) {
+        tempApp = std::make_unique<QApplication>(*argc, argv.get());
     }
 
     QString str = val.toString();
@@ -529,32 +549,33 @@ QVariant Region::process(const QVariant& val)
         return ScreenGrabber().desktopGeometry();
     } else if (str.startsWith("screen")) {
         bool ok;
-        int number = str.midRef(6).toInt(&ok);
+        int number = str.mid(6).toInt(&ok);
         if (!ok || number < 0) {
             return {};
         }
         return ScreenGrabber().screenGeometry(qApp->screens()[number]);
     }
 
-    QRegExp regex("(-{,1}\\d+)"   // number (any sign)
-                  "[x,\\.\\s]"    // separator ('x', ',', '.', or whitespace)
-                  "(-{,1}\\d+)"   // number (any sign)
-                  "[\\+,\\.\\s]*" // separator ('+',',', '.', or whitespace)
-                  "(-{,1}\\d+)"   // number (non-negative)
-                  "[\\+,\\.\\s]*" // separator ('+', ',', '.', or whitespace)
-                  "(-{,1}\\d+)"   // number (non-negative)
+    static const QRegularExpression regex(
+      "(-{,1}\\d+)"   // number (any sign)
+      "[x,\\.\\s]"    // separator ('x', ',', '.', or whitespace)
+      "(-{,1}\\d+)"   // number (any sign)
+      "[\\+,\\.\\s]*" // separator ('+',',', '.', or whitespace)
+      "(-{,1}\\d+)"   // number (non-negative)
+      "[\\+,\\.\\s]*" // separator ('+', ',', '.', or whitespace)
+      "(-{,1}\\d+)"   // number (non-negative)
     );
 
-    if (!regex.exactMatch(str)) {
+    if (!regex.match(str).hasMatch()) {
         return {};
     }
 
     int w, h, x, y;
     bool w_ok, h_ok, x_ok, y_ok;
-    w = regex.cap(1).toInt(&w_ok);
-    h = regex.cap(2).toInt(&h_ok);
-    x = regex.cap(3).toInt(&x_ok);
-    y = regex.cap(4).toInt(&y_ok);
+    w = regex.match(str).captured(1).toInt(&w_ok);
+    h = regex.match(str).captured(2).toInt(&h_ok);
+    x = regex.match(str).captured(3).toInt(&x_ok);
+    y = regex.match(str).captured(4).toInt(&y_ok);
 
     if (!(w_ok && h_ok && x_ok && y_ok)) {
         return {};

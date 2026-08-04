@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2017-2019 Alejandro Sirgo Rica & Contributors
 
 #include "circlecounttool.h"
-#include "colorutils.h"
+#include "utils/colorutils.h"
+
 #include <QPainter>
 #include <QPainterPath>
 
@@ -24,7 +25,7 @@ QIcon CircleCountTool::icon(const QColor& background, bool inEditor) const
 
 QString CircleCountTool::info()
 {
-    m_tempString = QString("%1 - %2").arg(name()).arg(count());
+    m_tempString = QString("%1 - %2").arg(name(), count());
     return m_tempString;
 }
 
