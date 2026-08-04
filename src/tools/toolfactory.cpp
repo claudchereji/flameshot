@@ -5,6 +5,7 @@
 #include "accept/accepttool.h"
 #include "arrow/arrowtool.h"
 #include "border/bordertool.h"
+#include "autoresize/autoresizetool.h"
 #include "circle/circletool.h"
 #include "circlecount/circlecounttool.h"
 #include "copy/copytool.h"
@@ -67,6 +68,7 @@ CaptureTool* ToolFactory::CreateTool(CaptureTool::Type t, QObject* parent)
         if_TYPE_return_TOOL(TYPE_INVERT, InvertTool);
         if_TYPE_return_TOOL(TYPE_ACCEPT, AcceptTool);
         if_TYPE_return_TOOL(TYPE_BORDER, BorderTool);
+        if_TYPE_return_TOOL(TYPE_AUTORESIZE, AutoResizeTool);
         default:
             return nullptr;
     }

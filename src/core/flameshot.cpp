@@ -349,6 +349,19 @@ void Flameshot::exportCapture(QPixmap capture,
           << selection.x() << "+" << selection.y() << "\n";
     }
 
+    // Auto-resize: lock width to 920px, scale height proportionally
+    if (ConfigHandler().autoResize() && capture.width() > 0) {
+        const int targetWidth = 920;
+        if (capture.width() != targetWidth) {
+            int targetHeight = qRound(capture.height() *
+                                       (static_cast<qreal>(targetWidth) /
+                                        capture.width()));
+            capture = capture.scaled(targetWidth, targetHeight,
+                                     Qt::KeepAspectRatio,
+                                     Qt::SmoothTransformation);
+        }
+    }
+
     if (tasks & CR::PRINT_RAW) {
         QByteArray byteArray;
         QBuffer buffer(&byteArray);

@@ -75,6 +75,7 @@ CaptureWidget::CaptureWidget(const CaptureRequest& req,
   , m_toolSizeByKeyboard(0)
   , m_borderEnabled(true)
   , m_borderDark(m_config.borderDarkColor())
+  , m_autoResizeEnabled(ConfigHandler().autoResize())
   , m_borderActiveColor(QColor(115, 198, 96))
 {
     m_undoStack.setUndoLimit(ConfigHandler().undoLimit());
@@ -307,6 +308,9 @@ void CaptureWidget::initButtons()
         }
         if (t == CaptureTool::TYPE_BORDER) {
             m_borderButton = b;
+        }
+        if (t == CaptureTool::TYPE_AUTORESIZE) {
+            m_autoResizeButton = b;
         }
         b->setColor(m_uiColor);
         b->hide();
@@ -1189,6 +1193,8 @@ void CaptureWidget::setState(CaptureToolButton* b)
                 // Keep border button highlighted if border is enabled
                 if (m_activeButton == m_borderButton && m_borderEnabled) {
                     m_activeButton->setColor(m_borderActiveColor);
+                } else if (m_activeButton == m_autoResizeButton && m_autoResizeEnabled) {
+                    m_activeButton->setColor(m_borderActiveColor);
                 } else {
                     m_activeButton->setColor(m_uiColor);
                 }
@@ -1196,6 +1202,8 @@ void CaptureWidget::setState(CaptureToolButton* b)
             m_activeButton = b;
             if (b == m_borderButton) {
                 m_activeButton->setColor(m_borderEnabled ? m_borderActiveColor : m_uiColor);
+            } else if (b == m_autoResizeButton) {
+                m_activeButton->setColor(m_autoResizeEnabled ? m_borderActiveColor : m_uiColor);
             } else {
                 m_activeButton->setColor(m_contrastUiColor);
             }
@@ -1277,6 +1285,9 @@ void CaptureWidget::handleToolSignal(CaptureTool::Request r)
             break;
         case CaptureTool::REQ_TOGGLE_BORDER:
             toggleBorder();
+            break;
+        case CaptureTool::REQ_TOGGLE_AUTORESIZE:
+            toggleAutoResize();
             break;
         default:
             break;
@@ -1828,4 +1839,13 @@ void CaptureWidget::toggleBorder()
         m_borderButton->setColor(m_borderEnabled ? m_borderActiveColor : m_uiColor);
     }
     repaint();
+}
+
+void CaptureWidget::toggleAutoResize()
+{
+    m_autoResizeEnabled = !m_autoResizeEnabled;
+    ConfigHandler().setAutoResize(m_autoResizeEnabled);
+    if (m_autoResizeButton) {
+        m_autoResizeButton->setColor(m_autoResizeEnabled ? m_borderActiveColor : m_uiColor);
+    }
 }

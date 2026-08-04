@@ -142,22 +142,23 @@ static std::map<CaptureTool::Type, int> buttonTypeOrder
       { CaptureTool::TYPE_MARKER, 6 }, { CaptureTool::TYPE_TEXT, 7 },
       { CaptureTool::TYPE_BLUR, 8 },
       { CaptureTool::TYPE_BORDER, 9 },
-      { CaptureTool::TYPE_INVERT, 10 },
-      { CaptureTool::TYPE_CIRCLECOUNT, 11 },
-      { CaptureTool::TYPE_SELECTIONINDICATOR, 12 },
-      { CaptureTool::TYPE_MOVESELECTION, 13 }, { CaptureTool::TYPE_UNDO, 14 },
-      { CaptureTool::TYPE_REDO, 15 }, { CaptureTool::TYPE_COPY, 16 },
-      { CaptureTool::TYPE_SAVE, 17 }, { CaptureTool::TYPE_IMAGEUPLOADER, 18 },
-      { CaptureTool::TYPE_ACCEPT, 19 },
+      { CaptureTool::TYPE_AUTORESIZE, 10 },
+      { CaptureTool::TYPE_INVERT, 11 },
+      { CaptureTool::TYPE_CIRCLECOUNT, 12 },
+      { CaptureTool::TYPE_SELECTIONINDICATOR, 13 },
+      { CaptureTool::TYPE_MOVESELECTION, 14 }, { CaptureTool::TYPE_UNDO, 15 },
+      { CaptureTool::TYPE_REDO, 16 }, { CaptureTool::TYPE_COPY, 17 },
+      { CaptureTool::TYPE_SAVE, 18 }, { CaptureTool::TYPE_IMAGEUPLOADER, 19 },
+      { CaptureTool::TYPE_ACCEPT, 20 },
 #if !defined(Q_OS_MACOS)
-      { CaptureTool::TYPE_OPEN_APP, 20 }, { CaptureTool::TYPE_EXIT, 21 },
-      { CaptureTool::TYPE_PIN, 22 },
+      { CaptureTool::TYPE_OPEN_APP, 21 }, { CaptureTool::TYPE_EXIT, 22 },
+      { CaptureTool::TYPE_PIN, 23 },
 #else
-      { CaptureTool::TYPE_EXIT, 20 }, { CaptureTool::TYPE_PIN, 21 },
+      { CaptureTool::TYPE_EXIT, 21 }, { CaptureTool::TYPE_PIN, 22 },
 #endif
 
-      { CaptureTool::TYPE_SIZEINCREASE, 23 },
-      { CaptureTool::TYPE_SIZEDECREASE, 24 },
+      { CaptureTool::TYPE_SIZEINCREASE, 24 },
+      { CaptureTool::TYPE_SIZEDECREASE, 25 },
 };
 
 int CaptureToolButton::getPriorityByButton(CaptureTool::Type b)
@@ -177,6 +178,7 @@ QList<CaptureTool::Type> CaptureToolButton::iterableButtonTypes = {
     CaptureTool::TYPE_SELECTIONINDICATOR,
     CaptureTool::TYPE_MOVESELECTION, CaptureTool::TYPE_UNDO,
     CaptureTool::TYPE_REDO,          CaptureTool::TYPE_BORDER,
+    CaptureTool::TYPE_AUTORESIZE,
     CaptureTool::TYPE_COPY,
     CaptureTool::TYPE_SAVE,          CaptureTool::TYPE_EXIT,
     CaptureTool::TYPE_IMAGEUPLOADER,

@@ -50,6 +50,7 @@ public:
         TYPE_ACCEPT = 23,
         TYPE_BLUR = 24,
         TYPE_BORDER = 25,
+        TYPE_AUTORESIZE = 26,
     };
     Q_ENUM(Type);
 
@@ -79,7 +80,9 @@ public:
         // decrease tool size for all tools
         REQ_DECREASE_TOOL_SIZE,
         // Toggle the screenshot border
-        REQ_TOGGLE_BORDER
+        REQ_TOGGLE_BORDER,
+        // Toggle auto-resize on export
+        REQ_TOGGLE_AUTORESIZE
     };
 
     explicit CaptureTool(QObject* parent = nullptr)

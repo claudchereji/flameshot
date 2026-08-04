@@ -81,6 +81,7 @@ private slots:
     void onMoveCaptureToolDown(int captureToolIndex);
     void selectAll();
     void toggleBorder();
+    void toggleAutoResize();
 
 public:
     void removeToolObject(int index = -1);
@@ -169,6 +170,7 @@ private:
     quint64 m_lastMouseWheel;
     QPointer<CaptureToolButton> m_sizeIndButton;
     QPointer<CaptureToolButton> m_borderButton;
+    QPointer<CaptureToolButton> m_autoResizeButton;
     // Last pressed button
     QPointer<CaptureToolButton> m_activeButton;
     QPointer<CaptureTool> m_activeTool;
@@ -200,6 +202,7 @@ private:
     bool m_existingObjectIsChanged;
     bool m_borderEnabled;
     bool m_borderDark;
+    bool m_autoResizeEnabled;
     QColor m_borderActiveColor;
 
     // For start moving after more than X offset
